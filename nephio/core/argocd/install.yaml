@@ -919,9 +919,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-applicationset-controller
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
@@ -1131,9 +1129,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
@@ -1238,9 +1234,7 @@ spec:
   strategy:
     type: Recreate
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-notifications-controller
     spec:
@@ -1326,9 +1320,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-redis
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
@@ -1386,9 +1378,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-repo-server
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
@@ -1700,9 +1690,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-server
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-server
     spec:
@@ -2050,9 +2038,7 @@ spec:
       app.kubernetes.io/name: argocd-application-controller
   serviceName: argocd-application-controller
   template:
-    metadata: # kpt-merge: /argocd
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|argocd'
+    metadata:
       labels:
         app.kubernetes.io/name: argocd-application-controller
     spec:
