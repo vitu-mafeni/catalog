@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-configsync
+  name: example-argocd
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: configsync
+    package: argocd
     repo: catalog-nephio-core
-    revision: v2.0.0
+    revision: v1.0
   downstream:
-    package: example-configsync
+    package: example-argocd
     repo: mgmt-staging
   pipeline:
     mutators:
