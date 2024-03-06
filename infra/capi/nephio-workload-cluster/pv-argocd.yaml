@@ -7,7 +7,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: argocd
-    repo: catalog-nephio-core
+    repo: catalog-nephio-core-vt
     revision: v1.0
   downstream:
     package: example-argocd
