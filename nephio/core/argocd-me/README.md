@@ -1,21 +1,21 @@
-# argo-cd-core
+# argocd
 
 ## Description
-kpt package for deploying argo-cd-core package
+sample description
 
 ## Usage
 
 ### Fetch the package
-`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] argo-cd-core`
+`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] argocd`
 Details: https://kpt.dev/reference/cli/pkg/get/
 
 ### View package content
-`kpt pkg tree argo-cd-core`
+`kpt pkg tree argocd`
 Details: https://kpt.dev/reference/cli/pkg/tree/
 
 ### Apply the package
 ```
-kpt live init argo-cd-core
-kpt live apply argo-cd-core --reconcile-timeout=2m --output=table
+kpt live init argocd
+kpt live apply argocd --reconcile-timeout=2m --output=table
 ```
 Details: https://kpt.dev/reference/cli/live/

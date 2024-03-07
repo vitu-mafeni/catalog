@@ -1,16 +1,16 @@
-# argocd
+# argo-cd-core
 
 ## Description
-sample description
+kpt package for deploying argocd package
 
 ## Usage
 
 ### Fetch the package
-`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] argocd`
+`kpt pkg get REPO_URI[.git]/PKG_PATH[@VERSION] argo-cd-core`
 Details: https://kpt.dev/reference/cli/pkg/get/
 
 ### View package content
-`kpt pkg tree argocd`
+`kpt pkg tree argo-cd-core`
 Details: https://kpt.dev/reference/cli/pkg/tree/
 
 ### Apply the package
