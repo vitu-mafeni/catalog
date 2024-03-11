@@ -18,7 +18,7 @@ source: |-
       if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster") and "annotations" in r["metadata"] and "kpt.dev/injected-resource" in r["metadata"]["annotations"]:
         clusterName = r["spec"]["clusterName"]
     for r in resources:
-      if krmfn.match_gvk(r, "applications.argoproj.io", "Application"):
+      if krmfn.match_gvk(r, "argoproj.io/v1alpha1", "Application"):
         r["metadata"]["name"] = clusterName
         r["spec"]["git"]["repoURL"] = "http://172.18.0.200:3000/nephio/" + clusterName + ".git"
       elif krmfn.match_gvk(r, "configsync.gke.io/v1beta1", "RootSync"):
