@@ -1,3 +1,4 @@
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -37,6 +38,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -104,3 +113,114 @@ rules:
   - get
   - list
   - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  name: argocd-dex-server
+  namespace: argocd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller
+  namespace: argocd
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-cm
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-notifications-secret
+  resources:
+  - secrets
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+  name: argocd-server
+  namespace: argocd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - appprojects
+  - applicationsets
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
