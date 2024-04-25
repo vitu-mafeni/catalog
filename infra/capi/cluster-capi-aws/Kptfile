@@ -1,0 +1,13 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: generate-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/upstream-identifier: fn.kpt.dev|StarlarkRun|default|generate-values
+info:
+  description: Provisions aws-cluster
+pipeline:
+  mutators:
+  - image: gcr.io/kpt-fn/starlark:v0.4.3
+    configPath: set-values.yaml
