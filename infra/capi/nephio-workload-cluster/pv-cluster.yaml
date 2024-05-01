@@ -6,7 +6,7 @@ spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: cluster-capi-kind
+    package: cluster-capi-aws
     repo: catalog-infra-capi
     revision: v2.0.0
   downstream:

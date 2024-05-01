@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-configsync
+  name: example-calico
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: configsync
-    repo: catalog-nephio-core
+    package: calico
+    repo: catalog-infra-capi
     revision: v2.0.0
   downstream:
-    package: example-configsync
+    package: example-calico
     repo: mgmt-staging
   pipeline:
     mutators:
