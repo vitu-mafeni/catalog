@@ -22,6 +22,12 @@ spec:
     # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: default
   
+  ignore:
+    - group: fn.kpt.dev
+      kind: ApplyReplacements
+    - group: argoproj.io
+      kind: StarlarkRun
+
   syncPolicy:
     automated: 
       prune: true 
