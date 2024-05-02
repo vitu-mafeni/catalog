@@ -25,7 +25,17 @@ spec:
   syncPolicy:
     automated: 
       prune: true 
-      selfHeal: true   
+      selfHeal: true
+      allowEmpty: true
+      syncWave:
+        wait: 1m
+        hooks:
+          sync: Skip   
     # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.  
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+     - group: fn.kpt.dev
+       kind: ApplyReplacements
+     - group: fn.kpt.dev
+       kind: StarlarkRun
