@@ -22,21 +22,12 @@ spec:
     # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
     namespace: default
   
-  ignore:
-    - group: fn.kpt.dev
-      kind: ApplyReplacements
-    - group: argoproj.io
-      kind: StarlarkRun
-
   syncPolicy:
     automated: 
       prune: true 
       selfHeal: true
       allowEmpty: true
-      syncWave:
-        wait: 1m
-        hooks:
-          sync: Skip   
+
     # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.  
     syncOptions:
       - CreateNamespace=true
