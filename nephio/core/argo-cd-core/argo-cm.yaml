@@ -6,6 +6,8 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-cm
   namespace: argocd
+data:
+  timeout.reconciliation: 60s
 ---
 apiVersion: v1
 kind: ConfigMap
