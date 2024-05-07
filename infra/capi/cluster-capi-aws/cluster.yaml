@@ -26,8 +26,15 @@ metadata:
   name: aws-nephio
   namespace: default
 spec:
-  region: us-east-1
-  sshKeyName: nephio
+  region: ap-northeast-2
+  sshKeyName: nephio3
+  bastion:
+    enabled: true
+  network:
+    vpc:
+      id: vpc-0fedfa9bd7f06957b
+    subnets:
+    - id: subnet-0132f2a2bc7a34c0d
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
