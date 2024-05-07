@@ -28,13 +28,13 @@ metadata:
 spec:
   region: ap-northeast-2
   sshKeyName: nephio3
-  bastion:
-    enabled: true
   network:
     vpc:
       id: vpc-0fedfa9bd7f06957b
     subnets:
-    - id: subnet-0132f2a2bc7a34c0d
+    - id: subnet-0f512883fedd44187
+    - id: subnet-095b2b4a79e58e20f
+
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
