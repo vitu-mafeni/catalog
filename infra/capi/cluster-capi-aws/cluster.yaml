@@ -33,7 +33,7 @@ spec:
       id: vpc-0fedfa9bd7f06957b
     subnets:
     - id: subnet-0f512883fedd44187
-    - id: subnet-095b2b4a79e58e20f
+
 
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
@@ -78,7 +78,9 @@ spec:
     spec:
       iamInstanceProfile: control-plane.cluster-api-provider-aws.sigs.k8s.io
       instanceType: t3.large
-      sshKeyName: nephio
+      sshKeyName: nephio3
+      subnets:
+        id: subnet-0f512883fedd44187
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -114,7 +116,7 @@ spec:
     spec:
       iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
       instanceType: t3.large
-      sshKeyName: nephio
+      sshKeyName: nephio3
 --- 
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
