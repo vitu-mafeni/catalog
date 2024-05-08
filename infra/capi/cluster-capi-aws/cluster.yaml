@@ -30,11 +30,12 @@ spec:
   sshKeyName: nephio3
   network:
     vpc:
-      id: vpc-0fedfa9bd7f06957b
+      id: vpc-05e63e1a02e0c4e7e
     subnets:
-    - id: subnet-0f512883fedd44187
-
-
+    - id: subnet-0292cfc426009ac2b
+    - id: subnet-086706e3fa8971a05
+    - id: subnet-028786c6449d099aa
+    - id: subnet-049b22ede95f4619e
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
@@ -79,8 +80,6 @@ spec:
       iamInstanceProfile: control-plane.cluster-api-provider-aws.sigs.k8s.io
       instanceType: t3.large
       sshKeyName: nephio3
-      subnets:
-        id: subnet-0f512883fedd44187
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -116,7 +115,7 @@ spec:
     spec:
       iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
       instanceType: t3.large
-      sshKeyName: nephio3
+      sshKeyName: nephio
 --- 
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
