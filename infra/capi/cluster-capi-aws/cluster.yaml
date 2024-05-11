@@ -30,12 +30,12 @@ spec:
   sshKeyName: nephio3
   network:
     vpc:
-      id: vpc-05e63e1a02e0c4e7e
+      id: vpc-06b1c94b241e80669
     subnets:
-    - id: subnet-0292cfc426009ac2b
-    - id: subnet-086706e3fa8971a05
-    - id: subnet-028786c6449d099aa
-    - id: subnet-049b22ede95f4619e
+    - id: subnet-08f03ba4553f08bca
+    - id: subnet-0f37b598bd58dc931
+    - id: subnet-006319910cbb5697c
+    - id: subnet-094e801ec527dba7f
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
