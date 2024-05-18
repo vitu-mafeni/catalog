@@ -8,13 +8,13 @@ spec:
   sshKeyName: nephio
   network:
     vpc:
-      id: vpc-09d0c126bc4ec417e
+      id: vpc-07ebe34f3bcff09d7
     subnets:
-    - id: subnet-09acb394487606315
-    - id: subnet-0ecaec56adf735976
+    - id: subnet-0a6416f0c927df9ab
+    - id: subnet-06efe7eee52ec8e96
     securityGroupOverrides:
-      controlplane: sg-0a4f8d25abb8a2ed0
-      node: sg-0a4f8d25abb8a2ed0
-      apiserver-lb: sg-0a4f8d25abb8a2ed0
-      lb: sg-0a4f8d25abb8a2ed0
-      bastion: sg-0a4f8d25abb8a2ed0
+      controlplane: sg-05454ac22fa706ebf
+      node: sg-05454ac22fa706ebf
+      apiserver-lb: sg-05454ac22fa706ebf
+      lb: sg-05454ac22fa706ebf
+      bastion: sg-05454ac22fa706ebf
