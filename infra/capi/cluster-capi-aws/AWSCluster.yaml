@@ -1,0 +1,20 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSCluster
+metadata:
+  name: aws-nephio
+  namespace: default
+spec:
+  region: ap-northeast-2
+  sshKeyName: nephio
+  network:
+    vpc:
+      id: vpc-09d0c126bc4ec417e
+    subnets:
+    - id: subnet-09acb394487606315
+    - id: subnet-0ecaec56adf735976
+    securityGroupOverrides:
+      controlplane: sg-0a4f8d25abb8a2ed0
+      node: sg-0a4f8d25abb8a2ed0
+      apiserver-lb: sg-0a4f8d25abb8a2ed0
+      lb: sg-0a4f8d25abb8a2ed0
+      bastion: sg-0a4f8d25abb8a2ed0

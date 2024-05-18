@@ -1,0 +1,13 @@
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  name: crs-csi
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      csi: external
+  resources:
+  - kind: ConfigMap
+    name: aws-ebs-csi-driver-addon
+  strategy: ApplyOnce
