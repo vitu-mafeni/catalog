@@ -1,0 +1,8 @@
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: InternetGateway
+metadata:
+  name: infra-aws-igw
+spec:
+  vpcRef:
+    from:
+      name: infra-aws-vpc

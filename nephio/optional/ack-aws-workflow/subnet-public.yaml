@@ -1,0 +1,14 @@
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: Subnet
+metadata:
+  name: infra-aws-public-subnet1
+spec:
+  availabilityZone: ap-northeast-2a
+  cidrBlock: 10.0.0.0/20
+  mapPublicIPOnLaunch: true
+  vpcRef:
+    from:
+      name: infra-aws-vpc
+  routeTableRefs:
+  - from:
+      name: infra-aws-public-route-table

@@ -1,0 +1,17 @@
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: SecurityGroup
+metadata:
+  name: infra-aws-security-group
+spec:
+  description: "ack security group"
+  name: infra-aws-sg
+  vpcRef:
+     from:
+       name: infra-aws-vpc
+  ingressRules:
+    - ipProtocol: tcp
+      fromPort: 22
+      toPort: 22
+      ipRanges:
+        - cidrIP: "0.0.0.0/0"
+          description: "ingress"

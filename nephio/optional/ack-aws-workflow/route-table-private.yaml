@@ -1,0 +1,13 @@
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: RouteTable
+metadata:
+  name: infra-aws-private-route-table
+spec:
+  vpcRef:
+    from:
+      name: infra-aws-vpc
+  routes:
+  - destinationCIDRBlock: 0.0.0.0/0
+    natGatewayRef:
+      from:
+        name: infra-aws-natgateway1

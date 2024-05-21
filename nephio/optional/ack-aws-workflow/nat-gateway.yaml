@@ -1,0 +1,11 @@
+apiVersion: ec2.services.k8s.aws/v1alpha1
+kind: NATGateway
+metadata:
+  name: infra-aws-natgateway1
+spec:
+  subnetRef:
+    from:
+      name: infra-aws-public-subnet1
+  allocationRef:
+    from:
+      name: infra-aws-eip1
