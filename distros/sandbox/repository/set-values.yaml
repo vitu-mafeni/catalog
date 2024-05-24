@@ -8,6 +8,8 @@ metadata: # kpt-merge: /generate-values
 source: |-
   load("krmfn.star", "krmfn")
   def set_values(resources):
+    clusterName = ""
+    node_ip = ""
     # this package can be cloned manually and used without injection; in that case base
     # the repository name on the package name
     for r in resources:
@@ -15,7 +17,8 @@ source: |-
         clusterName = r["data"]["name"]
 
       if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "repo-service-node-ip"):
-        node-ip = r["data"]["node-ip"]
+        node_ip = r["data"]["node-ip"]
+
 
     # if a WorkloadCluster exists, and was injected, then use that for the name
     for r in resources:
@@ -30,7 +33,7 @@ source: |-
 
       if krmfn.match_gvk(r, "config.porch.kpt.dev/v1alpha1", "Repository"):
         r["metadata"]["name"] = clusterName
-        r["spec"]["git"]["repo"] = "http://" + node-ip + ":30540/nephio/" + clusterName + ".git"
+        r["spec"]["git"]["repo"] = "http://" + node_ip + ":30540/nephio/" + clusterName + ".git"
         r["spec"]["git"]["secretRef"]["name"] = clusterName + "-access-token-porch"
         if clusterName == "mgmt-staging":
            r["spec"]["deployment"] = False
