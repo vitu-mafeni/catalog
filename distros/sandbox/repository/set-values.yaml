@@ -36,8 +36,8 @@ source: |-
         r["spec"]["git"]["repo"] = "http://" + node_ip + ":30540/nephio/" + clusterName + ".git"
         r["spec"]["git"]["secretRef"]["name"] = clusterName + "-access-token-porch"
         if clusterName == "mgmt-staging":
-           r["spec"]["deployment"] = False
-           r["metadata"]["annotations"]["nephio.org/staging"] = "true"
+          r["spec"]["deployment"] = False
+          r["metadata"]["annotations"]["nephio.org/staging"] = "true"
       if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "Token"):
         r["metadata"]["name"] = clusterName + "-access-token-porch"
         if "annotations" in r["metadata"] and "nephio.org/gitops" in r["metadata"]["annotations"] and "configsync" in r["metadata"]["annotations"]["nephio.org/gitops"]:
