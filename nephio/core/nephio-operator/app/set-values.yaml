@@ -22,8 +22,14 @@ source: |-
         if krmfn.match_gvk(r, "apps/v1", "Deployment"):
             if r["metadata"]["name"] in ["token-controller", "nephio-controller"]:
                 containers = r["spec"]["template"]["spec"]["containers"]
+                
+
                 for container in containers:
-                    for e in container["env"]:
-                        if e['name'] == "GIT_URL":
-                            e['value'] = "http://" + node_ip + ":" + http_port
+
+                    if "env" in container:
+                        for e in container["env"]:
+                            if e['name'] == "GIT_URL":
+                                e['value'] = "http://" + node_ip + ":" + http_port
+                    else:
+                        print("No 'env' key in container:", container["name"])
   set_values(ctx.resource_list["items"])
