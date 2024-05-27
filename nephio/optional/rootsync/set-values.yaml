@@ -8,12 +8,19 @@ metadata: # kpt-merge: /generate-values
 source: |-
   load("krmfn.star", "krmfn")
   def set_values(resources):
-    
+    clusterName = ""
+    node_ip = "172.18.0.200"
+    http_port = "3000"
+
     # this package can be cloned manually and used without injection; in that case base
     # the repository name on the package name
     for r in resources:
       if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "kptfile.kpt.dev"):
         clusterName = r["data"]["name"]
+        
+      if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "repo-service-node-ip"):
+        node_ip = r["data"]["node-ip"]
+        http_port = r["data"]["node-port"]
 
     # if a WorkloadCluster exists, and was injected, then use that for the name
     for r in resources:
@@ -23,9 +30,9 @@ source: |-
     for r in resources:
       if krmfn.match_gvk(r, "argoproj.io/v1alpha1", "Application"):
         r["metadata"]["name"] = clusterName
-        r["spec"]["source"]["repoURL"] = "http://172.18.0.200:3000/nephio/" + clusterName + ".git"
+        r["spec"]["source"]["repoURL"] = "http://" + node_ip + ":"+ http_port +"/nephio/" + clusterName + ".git"
       elif krmfn.match_gvk(r, "configsync.gke.io/v1beta1", "RootSync"):
         r["metadata"]["name"] = clusterName
-        r["spec"]["git"]["repo"] = "http://172.18.0.200:3000/nephio/" + clusterName + ".git"
+        r["spec"]["git"]["repo"] = "http://" + node_ip + ":"+ http_port +"/nephio/" + clusterName + ".git"
         r["spec"]["git"]["secretRef"]["name"] = clusterName + "-access-token-configsync"
   set_values(ctx.resource_list["items"])
