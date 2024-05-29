@@ -14,3 +14,5 @@ spec:
     directory: /workloads/oai
     repo: https://github.com/vitu1234/catalog.git
   type: git
+
+
