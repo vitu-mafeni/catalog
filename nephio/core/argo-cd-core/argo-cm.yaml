@@ -8,6 +8,16 @@ metadata:
   namespace: argocd
 data:
   timeout.reconciliation: 60s
+  resource.exclusions: |
+    - apiGroups:
+        - "fn.kpt.dev/v1alpha1"
+      kinds:
+        - "StarlarkRun"
+        - "ApplyReplacements"
+      clusters:
+        - "*"
+      namespaces:
+        - "*"
 ---
 apiVersion: v1
 kind: ConfigMap
