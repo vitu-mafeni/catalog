@@ -12,5 +12,5 @@ spec:
   git:
     branch: main
     directory: /workloads/free5gc
-    repo: https://github.com/nephio-project/catalog.git
+    repo: https://github.com/vitu1234/catalog.git
   type: git
