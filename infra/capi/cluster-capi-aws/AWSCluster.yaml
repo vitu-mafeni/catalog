@@ -4,8 +4,6 @@ metadata:
   name: aws-nephio
   namespace: default
 spec:
-  bastion:
-    enabled: true
   region: ap-northeast-2
   sshKeyName: nephio
   network:
