@@ -7,7 +7,7 @@ spec:
   #   approval.nephio.org/policy: initial
   upstream:
     package: cluster-capi-openstack
-    repo: catalog-infra-capi-vt
+    repo: catalog-infra-capi
     revision: v1.0.0
   downstream:
     package: example-cluster
