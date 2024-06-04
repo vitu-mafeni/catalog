@@ -1,0 +1,13 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: OpenStackMachineTemplate
+metadata:
+  name: openstack-nephio-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      flavor: m1.large
+      image:
+        filter:
+          name: kube-ubuntu2004
+      sshKeyName: mykey
