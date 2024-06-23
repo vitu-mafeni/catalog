@@ -11,4 +11,4 @@ spec:
   networkInstance:
     name: vpc-ran
   cniType: macvlan
-  attachmentType: vlan
+  attachmentType: ens5
