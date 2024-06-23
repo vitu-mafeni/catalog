@@ -7,10 +7,10 @@ spec:
   routingTables:
   - name: vpc-cu-e1
     prefixes:
-    - prefix: 172:4::/32
+    - prefix: 10:4::/32
       labels:
         nephio.org/network-name: e1
-    - prefix: 172.4.0.0/16
+    - prefix: 10.4.0.0/16
       labels:
         nephio.org/network-name: e1
     interfaces:
