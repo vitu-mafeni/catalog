@@ -7,10 +7,10 @@ spec:
   routingTables:
   - name: vpc-cudu-f1
     prefixes:
-    - prefix: 172:5::/32
+    - prefix: 10:5::/32
       labels:
         nephio.org/network-name: f1
-    - prefix: 172.5.0.0/16
+    - prefix: 10.5.0.0/16
       labels:
         nephio.org/network-name: f1
     interfaces:
