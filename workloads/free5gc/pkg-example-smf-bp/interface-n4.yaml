@@ -10,4 +10,4 @@ spec:
   networkInstance:
     name: vpc-internal
   cniType: macvlan
-  attachmentType: ens5
+  attachmentType: vlan
