@@ -27,4 +27,4 @@ spec:
       selector:
         matchExpressions:
         - {key: nephio.org/cluster-name, operator: Exists}
-      attachmentType: ens5
+      attachmentType: vlan
