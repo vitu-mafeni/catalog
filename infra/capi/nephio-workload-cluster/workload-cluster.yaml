@@ -10,4 +10,4 @@ spec:
   - macvlan
   - ipvlan
   - sriov
-  masterInterface: eth1
+  masterInterface: ens5
