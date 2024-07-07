@@ -4,17 +4,18 @@ metadata:
   name: vpc-internet
   annotations:
     config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   topology: nephio
   routingTables:
   - name: vpc-internet
     prefixes:
     - prefix: 10::/32
-    - prefix: 10.12.0.0/16
+    - prefix: 10.10.0.0/20
     - prefix: 1000::/32
       labels:
         nephio.org/prefix-kind: pool
-    - prefix: 10.0.0.0/8
+    - prefix: 10.0.0.0/20
       labels:
         nephio.org/prefix-kind: pool
     interfaces:
@@ -27,4 +28,4 @@ spec:
       selector:
         matchExpressions:
         - {key: nephio.org/cluster-name, operator: Exists}
-      attachmentType: vlan
+      attachmentType: none
