@@ -4,6 +4,7 @@ metadata:
   name: vpc-ran
   annotations:
     config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   topology: nephio
   routingTables:
@@ -12,13 +13,13 @@ spec:
     - prefix: 10:2::/32
       labels:
         nephio.org/network-name: n2
-    - prefix: 10.2.0.0/16
+    - prefix: 10.2.0.0/20
       labels:
         nephio.org/network-name: n2
     - prefix: 10:3::/32
       labels:
         nephio.org/network-name: n3
-    - prefix: 10.3.0.0/16
+    - prefix: 10.3.0.0/20
       labels:
         nephio.org/network-name: n3
     interfaces:
@@ -31,4 +32,4 @@ spec:
       selector:
         matchExpressions:
         - {key: nephio.org/cluster-name, operator: Exists}
-      attachmentType: vlan
+      attachmentType: none
