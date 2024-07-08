@@ -8,6 +8,6 @@ spec:
     spec:
       iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
       instanceType: t3.large
-      sshKeyName: nephio
+      sshKeyName: nephio3
       rootVolume:
         size: 200

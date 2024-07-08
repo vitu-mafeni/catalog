@@ -5,7 +5,7 @@ metadata:
   namespace: default
 spec:
   region: ap-northeast-2
-  sshKeyName: nephio
+  sshKeyName: nephio3
   network:
     vpc:
       id: vpc-07ebe34f3bcff09d7
