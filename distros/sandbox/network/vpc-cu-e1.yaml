@@ -10,7 +10,7 @@ spec:
     - prefix: 10:4::/32
       labels:
         nephio.org/network-name: e1
-    - prefix: 10.4.0.0/16
+    - prefix: 10.200.50.0/24
       labels:
         nephio.org/network-name: e1
     interfaces:
@@ -23,4 +23,4 @@ spec:
       selector:
         matchExpressions:
         - {key: nephio.org/cluster-name, operator: Exists}
-      attachmentType: vlan
+      attachmentType: none

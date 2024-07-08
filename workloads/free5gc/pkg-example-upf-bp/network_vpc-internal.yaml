@@ -11,7 +11,7 @@ spec:
   - name: vpc-internal
     prefixes:
     - prefix: 10:1::/32
-    - prefix: 10.10.0.0/20
+    - prefix: 10.10.0.0/24
     interfaces:
     - kind: bridgedomain
       bridgeDomainName: vpc-internal 

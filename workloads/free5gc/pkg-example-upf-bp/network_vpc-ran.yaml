@@ -13,13 +13,13 @@ spec:
     - prefix: 10:2::/32
       labels:
         nephio.org/network-name: n2
-    - prefix: 10.2.0.0/20
+    - prefix: 10.10.30.2/24
       labels:
         nephio.org/network-name: n2
     - prefix: 10:3::/32
       labels:
         nephio.org/network-name: n3
-    - prefix: 10.3.0.0/20
+    - prefix: 10.10.50.2/24
       labels:
         nephio.org/network-name: n3
     interfaces:
