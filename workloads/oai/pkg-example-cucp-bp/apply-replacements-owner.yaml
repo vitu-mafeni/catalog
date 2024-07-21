@@ -18,6 +18,15 @@ replacements:
     options:
       delimiter: '-'
       index: 1
+      
+  - select:
+      kind: NetworkAttachmentDefinition
+    fieldPaths:
+    - metadata.name
+    options:
+      delimiter: '-'
+      index: 1
+
   - select:
       kind: Interface
     fieldPaths:

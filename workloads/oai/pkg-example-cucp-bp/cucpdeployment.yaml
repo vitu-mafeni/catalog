@@ -5,8 +5,33 @@ metadata:
   namespace: example
 spec:
   provider: cucp.openairinterface.org
-  capacity:
+  interfaces:
+  - name: n2
+    ipv4:
+      address: 192.168.8.53/24
+      gateway: 192.168.8.1
+  - name: f1c
+    ipv4:
+      address: 172.18.0.23/24
+      gateway: 172.18.0.1
+  - name: e1
+    ipv4:
+      address: 172.18.0.24/24
+      gateway: 172.18.0.1
+  networkInstances:
+  - name: vpc-ran
+    interfaces:
+    - n2
+  - name: vpc-cudu-f1
+    interfaces:
+    - f1c
+  - name: vpc-cu-e1
+    interfaces:
+    - e1
   parametersRefs:
   - apiVersion: workload.nephio.org/v1alpha1
     kind: NFConfig
     name: cucp-nf-config
+  - name: cucp-ran-amf-core
+    apiVersion: ref.nephio.org/v1alpha1
+    kind: Config
