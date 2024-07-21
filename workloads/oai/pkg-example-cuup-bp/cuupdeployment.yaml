@@ -5,7 +5,33 @@ metadata:
   namespace: example
 spec:
   provider: cuup.openairinterface.org
+  interfaces:
+  - name: n3
+    ipv4:
+      address: 192.168.1.112/24
+      gateway: 192.168.1.1
+  - name: f1u
+    ipv4:
+      address: 172.18.0.26/24
+      gateway: 172.18.0.1
+  - name: e1
+    ipv4:
+      address: 172.18.0.27/24
+      gateway: 172.18.0.1
+  networkInstances:
+  - name: vpc-ran
+    interfaces:
+    - n3
+  - name: vpc-cudu-f1
+    interfaces:
+    - f1u
+  - name: vpc-cu-e1
+    interfaces:
+    - e1
   parametersRefs:
-    - apiVersion: workload.nephio.org/v1alpha1
-      kind: NFConfig
-      name: cuup-nf-config
+  - name: cuup-nf-config
+    apiVersion: workload.nephio.org/v1alpha1
+    kind: NFConfig
+  - apiVersion: ref.nephio.org/v1alpha1
+    kind: Config
+    name: oai-cucp-config

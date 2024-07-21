@@ -4,5 +4,6 @@ metadata:
   name: kptfile.kpt.dev
   annotations:
     config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 data:
   name: example

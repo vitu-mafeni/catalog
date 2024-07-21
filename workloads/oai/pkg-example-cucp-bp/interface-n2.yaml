@@ -7,8 +7,7 @@ metadata:
     config.kubernetes.io/local-config: "true"
     specializer.nephio.org/owner: workload.nephio.org/v1alpha1.NFDeployment.cucp-example
     specializer.nephio.org/namespace: example
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   networkInstance:
-    name: vpc-ran
-  cniType: macvlan
-  attachmentType: vlan
+    name: default

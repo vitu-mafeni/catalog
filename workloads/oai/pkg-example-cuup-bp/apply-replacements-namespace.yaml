@@ -34,3 +34,8 @@ replacements:
       kind: Dependency
     fieldPaths:
     - metadata.annotations.[specializer.nephio.org/namespace]
+  - select:
+      kind: NetworkAttachmentDefinition
+    fieldPaths:
+    - metadata.namespace
+    - metadata.annotations.[specializer.nephio.org/namespace]
