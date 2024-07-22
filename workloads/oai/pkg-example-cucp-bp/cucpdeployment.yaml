@@ -8,16 +8,16 @@ spec:
   interfaces:
   - name: n2
     ipv4:
-      address: 192.168.8.53/24
+      address: 192.168.8.55/24
       gateway: 192.168.8.1
   - name: f1c
     ipv4:
-      address: 172.18.0.23/24
-      gateway: 172.18.0.1
+      address: 192.168.10.21/24
+      gateway: 192.168.10.1
   - name: e1
     ipv4:
-      address: 172.18.0.24/24
-      gateway: 172.18.0.1
+      address: 192.168.11.20/24
+      gateway: 192.168.11.1
   networkInstances:
   - name: vpc-ran
     interfaces:
