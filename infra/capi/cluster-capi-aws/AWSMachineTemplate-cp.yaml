@@ -7,7 +7,7 @@ spec:
   template:
     spec:
       iamInstanceProfile: control-plane.cluster-api-provider-aws.sigs.k8s.io
-      instanceType: t3.large
+      instanceType: c5.4xlarge
       sshKeyName: nephio3
       rootVolume:
         size: 200
