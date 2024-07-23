@@ -21,15 +21,15 @@ spec:
       interfaces:
       - name: n2
         ipv4:
-          address: 192.168.8.16/24
+          address: 192.168.8.55/24
           gateway: 192.168.8.1
       - name: f1c
         ipv4:
-          address: 192.168.10.51/24
+          address: 192.168.10.21/24
           gateway: 192.168.10.1
       - name: e1
         ipv4:
-          address: 192.168.11.61/24
+          address: 192.168.11.20/24
           gateway: 192.168.11.1
       parametersRefs:
       - name: oai-cucp-config
