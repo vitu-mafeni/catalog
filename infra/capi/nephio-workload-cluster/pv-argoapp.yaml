@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-rootsync
+  name: example-argoapp
 spec:
   # annotations:
   #   approval.nephio.org/policy: initial
   upstream:
-    package: rootsync
+    package: argoapp
     repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
-    package: example-rootsync
+    package: example-argoapp
     repo: mgmt-staging
   injectors:
   - kind: WorkloadCluster
