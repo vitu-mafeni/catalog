@@ -1,2 +1,2 @@
-# catalog
+# catalog customized
 Nephio Package Catalog 
