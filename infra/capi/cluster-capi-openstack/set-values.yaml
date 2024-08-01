@@ -3,6 +3,7 @@ kind: StarlarkRun
 metadata:
   name: set-values
   annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     config.kubernetes.io/local-config: "true"
 source: |-
   load("krmfn.star", "krmfn")
