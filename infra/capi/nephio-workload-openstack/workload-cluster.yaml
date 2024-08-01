@@ -7,7 +7,7 @@ spec:
   # well as in metadata.
   clusterName: example
   cnis:
-  - macvlan
   - ipvlan
+  - macvlan
   - sriov
-  masterInterface: eth1
+  masterInterface: ens5
