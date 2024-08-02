@@ -1,7 +1,7 @@
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
-  name: openstack-nephio-control-plane
+  name: example-control-plane
   namespace: default
 spec:
   kubeadmConfigSpec:
@@ -29,6 +29,6 @@ spec:
     infrastructureRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
       kind: OpenStackMachineTemplate
-      name: openstack-nephio-control-plane
+      name: example-control-plane
   replicas: 1
   version: v1.30.0

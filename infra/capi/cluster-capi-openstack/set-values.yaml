@@ -15,35 +15,35 @@ source: |-
 
         for r in resources:
           if krmfn.match_gvk(r, "v1", "Secret"):
-            if r["metadata"]["name"] == "openstack-nephio-cloud-config":
+            if r["metadata"]["name"] == "example-cloud-config":
               r["metadata"]["name"] = new_cluster_name + "-cloud-config"
           if krmfn.match_gvk(r, "bootstrap.cluster.x-k8s.io/v1beta1", "KubeadmConfigTemplate"):
-            if r["metadata"]["name"] == "openstack-nephio-md-0":
+            if r["metadata"]["name"] == "example-md-0":
               r["metadata"]["name"] = new_cluster_name + "-md-0"
           if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "Cluster"):
-            if r["metadata"]["name"] == "openstack-nephio":
+            if r["metadata"]["name"] == "example":
               r["metadata"]["name"] = new_cluster_name
               r["spec"]["controlPlaneRef"]["name"] = new_cluster_name + "-control-plane"
               r["spec"]["infrastructureRef"]["name"] = new_cluster_name
           if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "MachineDeployment"):
-            if r["metadata"]["name"] == "openstack-nephio-md-0":
+            if r["metadata"]["name"] == "example-md-0":
               r["metadata"]["name"] = new_cluster_name + "-md-0"
               r["spec"]["clusterName"] = new_cluster_name
               r["spec"]["template"]["spec"]["clusterName"] = new_cluster_name
               r["spec"]["template"]["spec"]["bootstrap"]["configRef"]["name"] = new_cluster_name + "-md-0"
               r["spec"]["template"]["spec"]["infrastructureRef"]["name"] = new_cluster_name + "-md-0"
           if krmfn.match_gvk(r, "controlplane.cluster.x-k8s.io/v1beta1", "KubeadmControlPlane"):
-            if r["metadata"]["name"] == "openstack-nephio-control-plane":
+            if r["metadata"]["name"] == "example-control-plane":
               r["metadata"]["name"] = new_cluster_name + "-control-plane"
               r["spec"]["machineTemplate"]["infrastructureRef"]["name"] = new_cluster_name + "-control-plane"
           if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackCluster"):
-            if r["metadata"]["name"] == "openstack-nephio":
+            if r["metadata"]["name"] == "example":
               r["metadata"]["name"] = new_cluster_name
               r["spec"]["identityRef"]["name"] = new_cluster_name + "-cloud-config"
           if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "OpenStackMachineTemplate"):
-            if r["metadata"]["name"] == "openstack-nephio-control-plane":
+            if r["metadata"]["name"] == "example-control-plane":
               r["metadata"]["name"] = new_cluster_name + "-control-plane"
-            if r["metadata"]["name"] == "openstack-nephio-md-0":
+            if r["metadata"]["name"] == "example-md-0":
               r["metadata"]["name"] = new_cluster_name + "-md-0"
 
   set_values(ctx.resource_list["items"])

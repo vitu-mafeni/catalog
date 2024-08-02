@@ -1,7 +1,7 @@
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: OpenStackCluster
 metadata:
-  name: openstack-nephio
+  name: example
   namespace: default
 spec:
   apiServerLoadBalancer:
@@ -10,7 +10,7 @@ spec:
     id: e32ef734-26bd-45be-9782-d459cacccf22
   identityRef:
     cloudName: openstack
-    name: openstack-nephio-cloud-config
+    name: example-cloud-config
   managedSecurityGroups:
     allNodesSecurityGroupRules:
     - description: Created by cluster-api-provider-openstack - BGP (calico)
