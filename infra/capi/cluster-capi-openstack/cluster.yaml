@@ -1,7 +1,7 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: openstack-nephio
+  name: example
   namespace: default
 spec:
   clusterNetwork:
@@ -12,8 +12,8 @@ spec:
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: KubeadmControlPlane
-    name: openstack-nephio-control-plane
+    name: example-control-plane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: OpenStackCluster
-    name: openstack-nephio
+    name: example
