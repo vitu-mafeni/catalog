@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-flannel
+  name: example-calico
 spec:
-  # annotations:
-  #   approval.nephio.org/policy: initial
+  annotations:
+    approval.nephio.org/policy: initial
   upstream:
-    package: flannel
-    repo: catalog-nephio-optional
+    package: calico
+    repo: catalog-infra-capi
     revision: v2.0.0
   downstream:
-    package: example-flannel
+    package: example-calico
     repo: mgmt-staging
   injectors:
   - kind: WorkloadCluster
