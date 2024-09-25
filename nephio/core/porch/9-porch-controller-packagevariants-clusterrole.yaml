@@ -1,7 +1,6 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: porch-controllers-packagevariants
 rules:
 - apiGroups:
@@ -30,6 +29,14 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - config.porch.kpt.dev
+  resources:
+  - repositories
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - porch.kpt.dev
   resources:
