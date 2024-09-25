@@ -2,7 +2,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-application-controller-network-policy
-  namespace: argocd
 spec:
   ingress:
   - from:
@@ -19,7 +18,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-applicationset-controller-network-policy
-  namespace: argocd
 spec:
   ingress:
   - from:
@@ -39,7 +37,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-dex-server-network-policy
-  namespace: argocd
 spec:
   ingress:
   - from:
@@ -70,7 +67,6 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller
     app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-network-policy
-  namespace: argocd
 spec:
   ingress:
   - from:
@@ -88,14 +84,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-redis-network-policy
-  namespace: argocd
 spec:
-  egress:
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -115,13 +104,11 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-repo-server-network-policy
-  namespace: argocd
 spec:
   ingress:
   - from:
@@ -154,7 +141,6 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: argocd-server-network-policy
-  namespace: argocd
 spec:
   ingress:
   - {}
