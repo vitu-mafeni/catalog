@@ -6,7 +6,7 @@ spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: argo-cd-core
+    package: argo-cd
     repo: catalog-nephio-core
     revision: v2.0.0
   downstream:
