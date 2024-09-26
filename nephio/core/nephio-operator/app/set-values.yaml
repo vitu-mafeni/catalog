@@ -1,0 +1,35 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata: # kpt-merge: /generate-values
+  name: generate-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/upstream-identifier: fn.kpt.dev|StarlarkRun|default|generate-values
+source: |-
+  load("krmfn.star", "krmfn")
+  def set_values(resources):
+    node_ip = ""
+    http_port = ""
+    
+    # Loop to find node_ip and http_port from the ConfigMap
+    for r in resources:
+        if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "repo-service-node-ip"):
+            node_ip = r["data"]["node-ip"]
+            http_port = r["data"]["node-port"]
+
+    # Loop to update the GIT_URL in the Deployment
+    for r in resources:
+        if krmfn.match_gvk(r, "apps/v1", "Deployment"):
+            if r["metadata"]["name"] in ["token-controller", "nephio-controller"]:
+                containers = r["spec"]["template"]["spec"]["containers"]
+                
+
+                for container in containers:
+
+                    if "env" in container:
+                        for e in container["env"]:
+                            if e['name'] == "GIT_URL":
+                                e['value'] = "http://" + node_ip + ":" + http_port
+                    else:
+                        print("No 'env' key in container:", container["name"])
+  set_values(ctx.resource_list["items"])
