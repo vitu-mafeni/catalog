@@ -15,9 +15,6 @@ spec:
   injectors:
   - kind: WorkloadCluster
     name: example
-  injectors:
-  - kind: WorkloadCluster
-    name: example
   pipeline:
     mutators:
     - image: gcr.io/kpt-fn/set-annotations:v0.1.4
