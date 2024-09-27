@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/name: argocd-applicationset-controller
     app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
+  namespace: argocd
 spec:
   ports:
   - name: webhook
@@ -27,6 +28,7 @@ metadata:
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
   name: argocd-dex-server
+  namespace: argocd
 spec:
   ports:
   - appProtocol: TCP
@@ -53,6 +55,7 @@ metadata:
     app.kubernetes.io/name: argocd-metrics
     app.kubernetes.io/part-of: argocd
   name: argocd-metrics
+  namespace: argocd
 spec:
   ports:
   - name: metrics
@@ -70,6 +73,7 @@ metadata:
     app.kubernetes.io/name: argocd-notifications-controller-metrics
     app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-metrics
+  namespace: argocd
 spec:
   ports:
   - name: metrics
@@ -87,6 +91,7 @@ metadata:
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
   name: argocd-redis
+  namespace: argocd
 spec:
   ports:
   - name: tcp-redis
@@ -103,6 +108,7 @@ metadata:
     app.kubernetes.io/name: argocd-repo-server
     app.kubernetes.io/part-of: argocd
   name: argocd-repo-server
+  namespace: argocd
 spec:
   ports:
   - name: server
@@ -124,6 +130,7 @@ metadata:
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
   name: argocd-server
+  namespace: argocd
 spec:
   ports:
   - name: http
@@ -145,6 +152,7 @@ metadata:
     app.kubernetes.io/name: argocd-server-metrics
     app.kubernetes.io/part-of: argocd
   name: argocd-server-metrics
+  namespace: argocd
 spec:
   ports:
   - name: metrics

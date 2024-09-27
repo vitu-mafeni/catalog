@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
   name: argocd-application-controller
+  namespace: argocd
 spec:
   replicas: 1
   selector:
@@ -223,7 +224,7 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.17
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -248,8 +249,6 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
-        - mountPath: /home/argocd/params
-          name: argocd-cmd-params-cm
         workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
@@ -266,10 +265,3 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
-      - configMap:
-          items:
-          - key: controller.profile.enabled
-            path: profiler.enabled
-          name: argocd-cmd-params-cm
-          optional: true
-        name: argocd-cmd-params-cm
