@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-crds
+  name: example-flannel
 spec:
-  annotations:
-    approval.nephio.org/policy: initial
+  # annotations:
+  #   approval.nephio.org/policy: initial
   upstream:
-    package: workload-crds
-    repo: catalog-nephio-core
+    package: flannel
+    repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
-    package: example-crds
+    package: example-flannel
     repo: mgmt-staging
   injectors:
   - kind: WorkloadCluster

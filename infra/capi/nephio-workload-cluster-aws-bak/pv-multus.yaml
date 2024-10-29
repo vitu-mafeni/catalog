@@ -1,20 +1,17 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-crds
+  name: example-multus
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: workload-crds
-    repo: catalog-nephio-core
+    package: multus
+    repo: catalog-infra-capi
     revision: v2.0.0
   downstream:
-    package: example-crds
+    package: example-multus
     repo: mgmt-staging
-  injectors:
-  - kind: WorkloadCluster
-    name: example
   pipeline:
     mutators:
     - image: gcr.io/kpt-fn/set-annotations:v0.1.4

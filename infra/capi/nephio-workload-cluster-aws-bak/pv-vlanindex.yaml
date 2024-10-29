@@ -1,17 +1,17 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-crds
+  name: example-vlanindex
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: workload-crds
-    repo: catalog-nephio-core
+    package: vlanindex
+    repo: catalog-infra-capi
     revision: v2.0.0
   downstream:
-    package: example-crds
-    repo: mgmt-staging
+    package: example-vlanindex
+    repo: mgmt
   injectors:
   - kind: WorkloadCluster
     name: example

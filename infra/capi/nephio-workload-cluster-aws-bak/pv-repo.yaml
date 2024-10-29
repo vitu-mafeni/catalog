@@ -1,17 +1,17 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-crds
+  name: example-repo
 spec:
-  annotations:
-    approval.nephio.org/policy: initial
+  # annotations:
+  #   approval.nephio.org/policy: initial
   upstream:
-    package: workload-crds
-    repo: catalog-nephio-core
+    package: repository
+    repo: catalog-distros-sandbox
     revision: v2.0.0
   downstream:
-    package: example-crds
-    repo: mgmt-staging
+    package: example-repo
+    repo: mgmt
   injectors:
   - kind: WorkloadCluster
     name: example
