@@ -1,20 +1,17 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-crds
+  name: example-metallb
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: workload-crds
-    repo: catalog-nephio-core
+    package: metallb
+    repo: catalog-distros-sandbox
     revision: v2.0.0
   downstream:
-    package: example-crds
+    package: example-metallb
     repo: mgmt-staging
-  injectors:
-  - kind: WorkloadCluster
-    name: example
   pipeline:
     mutators:
     - image: gcr.io/kpt-fn/set-annotations:v0.1.4
