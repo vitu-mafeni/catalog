@@ -13,10 +13,12 @@ spec:
   source:
     repoURL: http://172.18.0.200:3000/nephio/example-cluster-name.git
     targetRevision: HEAD
-    path: .
+    path: akri
+    helm:
+      valueFiles:
+        - values.yaml
     directory:
       recurse: true # go through subdirectories
-      include: 'akri/*'
   
   destination:
     server: https://kubernetes.default.svc
