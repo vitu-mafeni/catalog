@@ -4,5 +4,6 @@ metadata:
   name: pkg-ue
   annotations:
     config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 info:
   description: example oai ue sim blueprint package
