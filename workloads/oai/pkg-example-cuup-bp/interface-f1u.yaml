@@ -11,3 +11,5 @@ metadata:
 spec:
   networkInstance:
     name: default
+  cniType: macvlan
+  attachmentType: vlan

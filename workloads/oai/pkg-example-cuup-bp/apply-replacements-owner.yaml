@@ -19,13 +19,6 @@ replacements:
       delimiter: '-'
       index: 1
   - select:
-      kind: NetworkAttachmentDefinition
-    fieldPaths:
-    - metadata.name
-    options:
-      delimiter: '-'
-      index: 1
-  - select:
       kind: Interface
     fieldPaths:
     - metadata.annotations.[specializer.nephio.org/owner]
@@ -36,6 +29,14 @@ replacements:
       kind: Dependency
     fieldPaths:
     - metadata.annotations.[specializer.nephio.org/owner]
+    options:
+      delimiter: '-'
+      index: 1
+
+  - select:
+      kind: NetworkAttachmentDefinition
+    fieldPaths:
+    - metadata.name
     options:
       delimiter: '-'
       index: 1

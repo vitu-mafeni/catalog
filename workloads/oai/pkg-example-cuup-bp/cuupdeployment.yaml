@@ -12,11 +12,11 @@ spec:
       gateway: 192.168.1.1
   - name: f1u
     ipv4:
-      address: 192.168.10.50/24
+      address: 192.168.10.51/24
       gateway: 192.168.10.1
   - name: e1
     ipv4:
-      address: 192.168.11.60/24
+      address: 192.168.11.61/24
       gateway: 192.168.11.1
   networkInstances:
   - name: vpc-ran
