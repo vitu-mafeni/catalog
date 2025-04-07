@@ -5,4 +5,4 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
-  description: This package provides the templates and classes for docker kind capi clusters f
+  description: This package provides the templates and classes for docker kind capi clusters
