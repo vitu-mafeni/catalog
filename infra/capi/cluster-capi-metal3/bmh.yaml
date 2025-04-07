@@ -1,0 +1,13 @@
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: example
+spec:
+  online: true
+  bootMACAddress: 80:c1:6e:7a:e8:10
+  # This particular hardware does not support UEFI so we use legacy
+  bootMode: legacy
+  bmc:
+    address: ilo4-virtualmedia://192.168.1.13
+    credentialsName: example
+    disableCertificateVerification: true

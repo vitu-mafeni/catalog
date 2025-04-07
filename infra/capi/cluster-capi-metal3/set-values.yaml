@@ -1,0 +1,70 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata:
+  name: set-values
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    config.kubernetes.io/local-config: "true"
+source: |-
+  load("krmfn.star", "krmfn")
+
+  def set_values(resources):
+    for r in resources:
+      if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster"):
+        new_cluster_name = r["spec"]["clusterName"]
+
+        for r in resources:
+          if krmfn.match_gvk(r, "v1", "Secret"):
+            if r["metadata"]["name"] == "example-cloud-config":
+              r["metadata"]["name"] = new_cluster_name + "-cloud-config"
+              r["stringData"]["username"] = new_cluster_name + "-cloud-config"
+              r["stringData"]["password"] = new_cluster_name + "-cloud-config"
+          if krmfn.match_gvk(r, "metal3.io/v1alpha1", "BareMetalHost"):
+            if r["metadata"]["name"] == "example":
+              r["metadata"]["name"] = new_cluster_name
+              r["spec"]["bmc"]["credentialsName"] = new_cluster_name + "-cloud-config"
+
+          if krmfn.match_gvk(r, "bootstrap.cluster.x-k8s.io/v1beta1", "KubeadmConfigTemplate"):
+            if r["metadata"]["name"] == "example-md-0":
+              r["metadata"]["name"] = new_cluster_name + "-md-0"
+
+          if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "Cluster"):
+            if r["metadata"]["name"] == "example":
+              r["metadata"]["name"] = new_cluster_name
+              r["spec"]["controlPlaneRef"]["name"] = new_cluster_name + "-control-plane"
+              r["spec"]["infrastructureRef"]["name"] = new_cluster_name
+
+          if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "MachineDeployment"):
+            if r["metadata"]["name"] == "example-md-0":
+              r["metadata"]["name"] = new_cluster_name + "-md-0"
+              r["spec"]["clusterName"] = new_cluster_name
+              r["spec"]["template"]["spec"]["clusterName"] = new_cluster_name
+              r["spec"]["template"]["spec"]["bootstrap"]["configRef"]["name"] = new_cluster_name + "-md-0"
+              r["spec"]["template"]["spec"]["infrastructureRef"]["name"] = new_cluster_name + "-md-0"
+              
+          if krmfn.match_gvk(r, "controlplane.cluster.x-k8s.io/v1beta1", "KubeadmControlPlane"):
+            if r["metadata"]["name"] == "example-control-plane":
+              r["metadata"]["name"] = new_cluster_name + "-control-plane"
+              r["spec"]["machineTemplate"]["infrastructureRef"]["name"] = new_cluster_name + "-control-plane"
+
+          if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "Metal3Cluster"):
+            if r["metadata"]["name"] == "example":
+              r["metadata"]["name"] = new_cluster_name
+
+          if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "Metal3DataTemplate"):
+            if r["metadata"]["name"] == "example-control-plane":
+              r["metadata"]["name"] = new_cluster_name + "-control-plane"
+              r["spec"]["clusterName"] = new_cluster_name
+            if r["metadata"]["name"] == "example-md-0":
+              r["metadata"]["name"] = new_cluster_name + "-md-0"
+              r["spec"]["clusterName"] = new_cluster_name
+
+          if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "Metal3MachineTemplate"):
+            if r["metadata"]["name"] == "example-control-plane":
+              r["metadata"]["name"] = new_cluster_name + "-control-plane"
+              r["spec"]["template"]["spec"]["dataTemplate"]["name"] = new_cluster_name + "-control-plane"
+            if r["metadata"]["name"] == "example-md-0":
+              r["metadata"]["name"] = new_cluster_name + "-md-0"
+              r["spec"]["template"]["spec"]["dataTemplate"]["name"] = new_cluster_name + "-md-0"
+
+  set_values(ctx.resource_list["items"])
