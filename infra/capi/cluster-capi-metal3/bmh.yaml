@@ -1,7 +1,7 @@
 apiVersion: metal3.io/v1alpha1
 kind: BareMetalHost
 metadata:
-  name: bml-01
+  name: example
 spec:
   online: true
   bootMACAddress: 80:c1:6e:7a:e8:10
@@ -9,5 +9,5 @@ spec:
   bootMode: legacy
   bmc:
     address: ilo4-virtualmedia://192.168.1.13
-    credentialsName: bml-01
+    credentialsName: example
     disableCertificateVerification: true

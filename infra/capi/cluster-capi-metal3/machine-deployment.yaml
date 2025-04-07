@@ -4,7 +4,7 @@ metadata:
   labels:
     cluster.x-k8s.io/cluster-name: example
     nodepool: nodepool-0
-  name: example
+  name: example-md-0
   namespace: default
 spec:
   clusterName: example
@@ -23,11 +23,11 @@ spec:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
-          name: example-workers
+          name: example-md-0
       clusterName: example
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: Metal3MachineTemplate
-        name: example-workers
+        name: example-md-0
       nodeDrainTimeout: 0s
       version: v1.29.0
