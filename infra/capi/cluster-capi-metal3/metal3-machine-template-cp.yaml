@@ -1,7 +1,7 @@
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: Metal3MachineTemplate
 metadata:
-  name: example-controlplane
+  name: example-control-plane
   namespace: default
 spec:
   nodeReuse: false
@@ -9,7 +9,7 @@ spec:
     spec:
       automatedCleaningMode: metadata
       dataTemplate:
-        name: example-controlplane-template
+        name: example-control-plane
       image:
         checksum: ab54897a1bcae83581512cdeeda787f009846cfd7a63b298e472c1bd6c522d23
         checksumType: sha256
