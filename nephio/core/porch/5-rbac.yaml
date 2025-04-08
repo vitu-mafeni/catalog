@@ -38,17 +38,6 @@ rules:
       - patch
       - delete
   - apiGroups:
-      - porch.kpt.dev
-    resources:
-      - functions
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-  - apiGroups:
       - config.porch.kpt.dev
     resources:
       - repositories
@@ -136,3 +125,12 @@ rules:
       - get
       - watch
       - list
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - update
