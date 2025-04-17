@@ -45,10 +45,6 @@ spec:
         # Update image to the image of your porch apiserver build.
         image: docker.io/nephio/porch-server:v3.0.0
         imagePullPolicy: IfNotPresent
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 65532
-          runAsGroup: 65532
         resources:
           requests:
             memory: 256Mi
@@ -70,37 +66,12 @@ spec:
           value: porch-server
         - name: CERT_STORAGE_DIR
           value: /etc/webhook/certs
-        - name: GOOGLE_API_GO_EXPERIMENTAL_DISABLE_NEW_AUTH_LIB
-          value: "true"
         args:
         - --function-runner=function-runner:9445
         - --cache-directory=/cache
         - --cert-dir=/tmp/certs
         - --secure-port=4443
-        - --repo-sync-frequency=3m
-        - --disable-validating-admissions-policy=true
-        - --max-request-body-size=6291456 # Keep this in sync with function-runner's corresponding argument
-        #adding livenessProbes and readinessProbes for porch server
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 4443
-            scheme: HTTPS
-          initialDelaySeconds: 30
-          periodSeconds: 30
-          failureThreshold: 3
-          successThreshold: 1
-          timeoutSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 4443
-            scheme: HTTPS
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          failureThreshold: 3
-          successThreshold: 1
-          timeoutSeconds: 3
+        - --repo-sync-frequency=60s
 ---
 apiVersion: v1
 kind: Service
