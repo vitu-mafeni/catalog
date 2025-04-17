@@ -43,7 +43,7 @@ spec:
       containers:
       - name: porch-server
         # Update image to the image of your porch apiserver build.
-        image: docker.io/nephio/porch-server:v3.0.6
+        image: docker.io/nephio/porch-server:v3.0.0
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsNonRoot: true
@@ -80,7 +80,6 @@ spec:
         - --repo-sync-frequency=3m
         - --disable-validating-admissions-policy=true
         - --max-request-body-size=6291456 # Keep this in sync with function-runner's corresponding argument
-
         #adding livenessProbes and readinessProbes for porch server
         livenessProbe:
           httpGet:
