@@ -6,8 +6,10 @@ metadata:
 spec:
   template:
     spec:
+      ami:
+        id: ami-0a1cfa462ff5dc5d9
       iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
       instanceType: c5.4xlarge
-      sshKeyName: nephio3
+      sshKeyName: mynephio2025
       rootVolume:
         size: 200
