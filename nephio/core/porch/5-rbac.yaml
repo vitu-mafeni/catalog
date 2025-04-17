@@ -38,6 +38,17 @@ rules:
       - patch
       - delete
   - apiGroups:
+      - porch.kpt.dev
+    resources:
+      - functions
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
       - config.porch.kpt.dev
     resources:
       - repositories
@@ -80,12 +91,6 @@ rules:
       - get
       - watch
       - list
-  - apiGroups:
-      - apiregistration.k8s.io
-    resources: 
-      - apiservices
-    verbs:
-      - get
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -125,12 +130,3 @@ rules:
       - get
       - watch
       - list
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-    verbs:
-      - create
-      - delete
-      - get
-      - update
