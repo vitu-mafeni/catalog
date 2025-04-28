@@ -7,9 +7,9 @@ spec:
   template:
     spec:
       ami:
-        id: ami-0a1cfa462ff5dc5d9
+        id: ami-0e59779a198a7aa0e
       iamInstanceProfile: nodes.cluster-api-provider-aws.sigs.k8s.io
-      instanceType: c5.4xlarge
+      instanceType: t3.large
       sshKeyName: mynephio2025
       rootVolume:
-        size: 200
+        size: 100
