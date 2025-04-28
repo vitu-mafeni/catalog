@@ -4,17 +4,20 @@ metadata:
   name: aws-nephio
   namespace: default
 spec:
-  region: ap-northeast-2
-  sshKeyName: nephio3
+  controlPlaneLoadBalancer:
+    healthCheckProtocol: HTTPS
+    loadBalancerType: nlb
+  region: ap-southeast-1
+  sshKeyName: mynephio2025
   network:
     vpc:
-      id: vpc-07ebe34f3bcff09d7
+      id: vpc-0b8dcfcb05f812364
     subnets:
-    - id: subnet-0a6416f0c927df9ab
-    - id: subnet-06efe7eee52ec8e96
+    - id: subnet-076cb0566274ec802
+    - id: subnet-012968599b8a5c702
     securityGroupOverrides:
-      controlplane: sg-05454ac22fa706ebf
-      node: sg-05454ac22fa706ebf
-      apiserver-lb: sg-05454ac22fa706ebf
-      lb: sg-05454ac22fa706ebf
-      bastion: sg-05454ac22fa706ebf
+      controlplane: sg-0a33deac4bb927774
+      node: sg-0a33deac4bb927774
+      apiserver-lb: sg-0a33deac4bb927774
+      lb: sg-0a33deac4bb927774
+      bastion: sg-0a33deac4bb927774

@@ -28,4 +28,4 @@ spec:
       kind: AWSMachineTemplate
       name: aws-nephio-control-plane
   replicas: 1
-  version: v1.25.0
+  version: v1.32.0
