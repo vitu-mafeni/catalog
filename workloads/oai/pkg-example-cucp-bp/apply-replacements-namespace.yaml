@@ -15,6 +15,7 @@ replacements:
       kind: Config
     fieldPaths:
     - metadata.namespace
+    - spec.config.metadata.namespace
   - select:
       kind: NFConfig
     fieldPaths:
