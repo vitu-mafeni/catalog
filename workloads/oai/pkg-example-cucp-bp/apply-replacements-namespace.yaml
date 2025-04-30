@@ -35,4 +35,4 @@ replacements:
       kind: NetworkAttachmentDefinition
     fieldPaths:
     - metadata.namespace
-    - metadata.annotations.[specializer.nephio.org/namespace]
+    # - metadata.annotations.[specializer.nephio.org/namespace]
