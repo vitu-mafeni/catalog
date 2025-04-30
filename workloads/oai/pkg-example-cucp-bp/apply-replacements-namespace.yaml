@@ -23,14 +23,14 @@ replacements:
     - spec.configRefs.0.metadata.namespace
     - spec.configRefs.1.metadata.namespace
     - spec.configRefs.2.metadata.namespace
-  - select:
-      kind: Interface
-    fieldPaths:
-    - metadata.annotations.[specializer.nephio.org/namespace]
-  - select:
-      kind: Dependency
-    fieldPaths:
-    - metadata.annotations.[specializer.nephio.org/namespace]
+  # - select:
+  #     kind: Interface
+  #   fieldPaths:
+  #   - metadata.annotations.[specializer.nephio.org/namespace]
+  # - select:
+  #     kind: Dependency
+  #   fieldPaths:
+  #   - metadata.annotations.[specializer.nephio.org/namespace]
   - select:
       kind: NetworkAttachmentDefinition
     fieldPaths:
