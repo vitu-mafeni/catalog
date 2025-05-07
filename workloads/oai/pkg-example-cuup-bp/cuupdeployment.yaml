@@ -12,11 +12,11 @@ spec:
       gateway: 192.168.1.1 #CUUP_N3_GW
   - name: f1u
     ipv4:
-      address: 192.168.10.51/24 CUUP_F1U_IP
+      address: 192.168.10.50/24 CUUP_F1U_IP
       gateway: 192.168.10.1 #CUUP_F1U_GW
   - name: e1
     ipv4:
-      address: 192.168.11.61/24 #CUUP_E1_IP
+      address: 192.168.11.60/24 #CUUP_E1_IP
       gateway: 192.168.11.1 #CUUP_E1_GW
   networkInstances:
   - name: vpc-ran
