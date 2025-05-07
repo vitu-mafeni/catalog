@@ -19,8 +19,8 @@ spec:
       interfaces:
       - name: n2
         ipv4:
-          address: 192.168.8.53/24
-          gateway: 192.168.8.1
+          address: 192.168.8.53/24 #AMF_N2_IP
+          gateway: 192.168.8.1 #AMF_N2_GW
       networkInstances:
       - name: vpc-ran
         interfaces:
