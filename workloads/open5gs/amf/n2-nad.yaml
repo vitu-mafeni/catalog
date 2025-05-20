@@ -1,0 +1,7 @@
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: amf-example-n2
+  namespace: example
+spec:
+  config: '{ "cniVersion": "0.3.1", "type": "ipvlan", "capabilities": { "ips": true }, "master": "ens6", "mode": "l3", "ipam": { "type": "static" } }'

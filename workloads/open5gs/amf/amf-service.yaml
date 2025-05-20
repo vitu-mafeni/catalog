@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: amf-example
+  namespace: example
+  labels:
+    app: open5gs
+    nf: amf
+spec:
+  ports:
+    - name: sbi
+      port: 80
+  selector:
+    app: open5gs
+    nf: amf

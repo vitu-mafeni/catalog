@@ -1,0 +1,21 @@
+apiVersion: ref.nephio.org/v1alpha1
+kind: Config
+metadata:
+  name: config
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    specializer.nephio.org/owner: req.nephio.org/v1alpha1.Dependency.cucp
+spec:
+  interfaces:
+  - name: n3network
+    interface: n3
+    master: ens6
+    ipv4:
+      address: 192.168.822.55/24
+      gateway: 192.168.8.1
+  - name: n4network
+    interface: n4
+    master: ens6
+    ipv4:
+      address: 192.168.2.55/24
+      gateway: 192.168.2.1
