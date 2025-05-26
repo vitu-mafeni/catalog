@@ -1,0 +1,12 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: argocd-dr
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: Provisions argo application resource to configure argoCD for a Nephio cluster
+pipeline:
+  mutators:
+  - image: gcr.io/kpt-fn/starlark:v0.4.3
+    configPath: set-values.yaml

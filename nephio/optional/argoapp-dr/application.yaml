@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-dr
+  namespace: argocd
+  # Add a this finalizer ONLY if you want these to cascade delete.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: dr
+  
+  source:
+    # repoURL: http://172.18.0.200:3000/nephio/example-cluster-name.git
+    repoURL: http://172.18.0.200:3000/nephio/dr.git
+    targetRevision: HEAD
+    path: /example-cluster-name
+    directory:
+      recurse: true # go through subdirectories
+      # include: 'akri/*'
+  
+  destination:
+    server: https://kubernetes.default.svc
+    # The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+    namespace: default
+  
+  syncPolicy:
+    automated: 
+      prune: true 
+      selfHeal: true
+      allowEmpty: true
+
+    # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.  
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+     - group: fn.kpt.dev
+       kind: ApplyReplacements
+     - group: fn.kpt.dev
+       kind: StarlarkRun
