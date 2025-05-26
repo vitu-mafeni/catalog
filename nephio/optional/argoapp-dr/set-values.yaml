@@ -29,7 +29,7 @@ source: |-
       if krmfn.match_gvk(r, "argoproj.io/v1alpha1", "Application"):
         r["metadata"]["name"] = clusterName+"-dr"
         r["spec"]["source"]["repoURL"] = "http://" + node_ip + ":"+ http_port +"/nephio/dr.git"
-        r["spec"]["source"]["path"] = "/"+clusterName
+        r["spec"]["source"]["path"] = clusterName+"-dr"
       elif krmfn.match_gvk(r, "configsync.gke.io/v1beta1", "RootSync"):
         r["metadata"]["name"] = clusterName
         r["spec"]["git"]["repo"] = "http://" + node_ip + ":"+ http_port +"/nephio/" + clusterName + ".git"
