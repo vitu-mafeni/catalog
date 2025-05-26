@@ -9,16 +9,13 @@ metadata: # kpt-merge: /generate-values
 source: |-
   load("krmfn.star", "krmfn")
   def set_values(resources):
-    clusterName = ""
-    node_ip = "172.18.0.200"
-    http_port = "3000"
+    clusterName = "s"
+    node_ip = "192.18.0.200"
+    http_port = "3001"
 
     # this package can be cloned manually and used without injection; in that case base
     # the repository name on the package name
-    for r in resources:
-      if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "kptfile.kpt.dev"):
-        clusterName = r["data"]["name"]
-        
+    for r in resources:        
       if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "repo-service-node-ip"):
         node_ip = r["data"]["node-ip"]
         http_port = r["data"]["node-port"]
@@ -30,7 +27,6 @@ source: |-
       
     for r in resources:
       if krmfn.match_gvk(r, "argoproj.io/v1alpha1", "Application"):
-        r["metadata"]["name"] = clusterName
         r["spec"]["source"]["repoURL"] = "http://" + node_ip + ":"+ http_port +"/nephio/dr.git"
         r["spec"]["source"]["path"] = "/"+clusterName
       elif krmfn.match_gvk(r, "configsync.gke.io/v1beta1", "RootSync"):
