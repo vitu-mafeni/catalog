@@ -6,7 +6,7 @@ spec:
   # annotations:
   #   approval.nephio.org/policy: initial
   upstream:
-    package: argoapp
+    package: argoapp-dr
     repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
