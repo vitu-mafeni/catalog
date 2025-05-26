@@ -9,7 +9,7 @@ metadata: # kpt-merge: /generate-values
 source: |-
   load("krmfn.star", "krmfn")
   def set_values(resources):
-    clusterName = "s"
+    clusterName = ""
     node_ip = "172.18.0.200"
     http_port = "3000"
 
