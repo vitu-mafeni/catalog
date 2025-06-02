@@ -5,6 +5,7 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
     kpt.dev/config-injection: optional
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   packageName: nginx
   clusterName: edge
