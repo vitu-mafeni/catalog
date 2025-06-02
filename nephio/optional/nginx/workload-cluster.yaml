@@ -6,4 +6,5 @@ metadata:
     config.kubernetes.io/local-config: "true"
     kpt.dev/config-injection: optional
 spec:
-  clusterName: example
+  packageName: nginx
+  clusterName: edge
