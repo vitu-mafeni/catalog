@@ -1,16 +1,16 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-calico
+  name: example-flux-helm-controller
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: calico
-    repo: catalog-infra-capi
+    package: flux-helm-controller
+    repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
-    package: example-calico
+    package: example-flux-helm-controller
     repo: mgmt-staging
   injectors:
   - kind: WorkloadCluster
@@ -20,4 +20,3 @@ spec:
     - image: gcr.io/kpt-fn/set-annotations:v0.1.4
       configMap:
         nephio.org/cluster-name: example
-
