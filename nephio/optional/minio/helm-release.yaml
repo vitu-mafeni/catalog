@@ -9,7 +9,7 @@ spec:
     spec:
       chart: minio
       version: '17.0.1'
-      sourceRef:
+      chartRef:
         kind: OCIRepository
         name: minio
         namespace: minio-system
