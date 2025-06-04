@@ -10,7 +10,7 @@ spec:
       chart: minio
       version: '17.0.1'
       sourceRef:
-        kind: HelmRepository
+        kind: OCIRepository
         name: minio
         namespace: minio-system
       reconcileStrategy: Revision
