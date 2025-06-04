@@ -1,10 +1,29 @@
-# Source: flux2/templates/source-controller-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: notification-controller
     app.kubernetes.io/instance: flux-system
-    app.kubernetes.io/version: "2.0.0"
+    app.kubernetes.io/part-of: flux
+    control-plane: controller
+  name: notification-controller
+  namespace: flux-system
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  selector:
+    app: notification-controller
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: source-controller
+    app.kubernetes.io/instance: flux-system
     app.kubernetes.io/part-of: flux
     control-plane: controller
   name: source-controller
@@ -17,4 +36,24 @@ spec:
     targetPort: http
   selector:
     app: source-controller
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: notification-controller
+    app.kubernetes.io/instance: flux-system
+    app.kubernetes.io/part-of: flux
+    control-plane: controller
+  name: webhook-receiver
+  namespace: flux-system
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http-webhook
+  selector:
+    app: notification-controller
   type: ClusterIP
