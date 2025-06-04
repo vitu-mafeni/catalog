@@ -5,17 +5,13 @@ metadata:
   namespace: minio-system
 spec:
   interval: 1m
+  releaseName: minio
   chart:
     spec:
       chart: minio
-      version: '17.0.1'
-      chartRef:
-        kind: OCIRepository
+      sourceRef:
+        kind: HelmRepository
         name: minio
-        namespace: minio-system
-      reconcileStrategy: Revision
-      interval: 1m
-  targetNamespace: minio-system
   valuesFrom:
   - kind: ConfigMap
     name: minio-values
