@@ -2,7 +2,7 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: velero
-  namespace: velero-system
+  namespace: velero
 spec:
   interval: 1m
   releaseName: velero
