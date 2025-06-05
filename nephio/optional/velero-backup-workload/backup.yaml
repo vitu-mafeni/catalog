@@ -1,0 +1,16 @@
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: core-backup
+  namespace: velero
+spec:
+  csiSnapshotTimeout: 10m0s
+  defaultVolumesToFsBackup: false
+  hooks: {}
+  includedNamespaces:
+  - nginx-example
+  itemOperationTimeout: 4h0m0s
+  metadata: {}
+  snapshotMoveData: false
+  storageLocation: default
+  ttl: 720h0m0s
