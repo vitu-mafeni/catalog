@@ -63,18 +63,18 @@ data:
       size: 20Gi
 
     service:
-      type: ClusterIP
+      type: LoadBalancer
       port: "9000"
-      nodePort: 32000
-      externalTrafficPolicy: Cluster
-      loadBalancerSourceRanges: []
+      # nodePort: 32000
+      # externalTrafficPolicy: Cluster
+      # loadBalancerSourceRanges: []
 
     consoleService:
-      type: ClusterIP
+      type: LoadBalancer
       port: "9001"
-      nodePort: 32001
-      externalTrafficPolicy: Cluster
-      loadBalancerSourceRanges: []
+      # nodePort: 32001
+      # externalTrafficPolicy: Cluster
+      # loadBalancerSourceRanges: []
 
     securityContext:
       enabled: true
