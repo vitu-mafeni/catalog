@@ -21,7 +21,8 @@ source: |-
 
     for r in resources:
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
-        r["metadata"]["name"] = clusterName+"-"+r["metadata"]["name"]
+        if r["metadata"]["name"] != "wordpress-mysql":
+          r["metadata"]["name"] = clusterName+"-"+r["metadata"]["name"]
         r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/cluster-policy"] = "true"
         r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/packageName"] = packageName
       if krmfn.match_gvk(r, "v1", "Service"):
