@@ -6,11 +6,11 @@ spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: flux-helm-controller
+    package: flux-helm-controllers
     repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
-    package: example-flux-helm-controller
+    package: example-flux-helm-controllers
     repo: mgmt-staging
   injectors:
   - kind: WorkloadCluster
