@@ -1,0 +1,31 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata: # kpt-merge: /generate-values
+  name: generate-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/upstream-identifier: fn.kpt.dev|StarlarkRun|default|generate-values
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+source: |-
+  load("krmfn.star", "krmfn")
+  def set_values(resources):
+    packageName = ""
+    clusterName = ""
+
+    # if a WorkloadCluster exists, and was injected, then use that for the name
+
+    for r in resources:
+      if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster"):
+        packageName = r["spec"]["packageName"]
+        clusterName = r["spec"]["clusterName"]
+
+    for r in resources:
+      if krmfn.match_gvk(r, "apps/v1", "Deployment"):
+        r["metadata"]["name"] = clusterName+"-wordpress"
+        r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/cluster-policy"] = "true"
+        r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/packageName"] = packageName
+      if krmfn.match_gvk(r, "v1", "Service"):
+        r["metadata"]["name"] = clusterName+"-nginx"
+
+  set_values(ctx.resource_list["items"])
+## MAKE SURE TO ADD PACKAGE AND CLUSTER NAME TO THE WORKLOADCLUSTER CR SO IT CAN POPULATE THE CORRECT CLUSTER NAME TO OTHER RESOURCES

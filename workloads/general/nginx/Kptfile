@@ -1,0 +1,13 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: nginx
+  namespace: nginx
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: resources to test stateless migration of workload
+pipeline:
+  mutators:
+  - image: gcr.io/kpt-fn/starlark:v0.4.3
+    configPath: set-values.yaml

@@ -1,10 +1,32 @@
+# apiVersion: velero.io/v1
+# kind: Restore
+# metadata:
+#   name: example-restore
+#   namespace: velero
+# spec:
+#   backupName: my-backup
+#   excludedResources:
+#   - nodes
+#   - events
+#   - events.events.k8s.io
+#   - backups.velero.io
+#   - restores.velero.io
+#   - resticrepositories.velero.io
+#   - csinodes.storage.k8s.io
+#   - volumeattachments.storage.k8s.io
+#   - backuprepositories.velero.io
+#   hooks: {}
+#   includedNamespaces:
+#   - '*'
+#   itemOperationTimeout: 4h0m0s
+---
 apiVersion: velero.io/v1
 kind: Restore
 metadata:
   name: example-restore
   namespace: velero
 spec:
-  backupName: my-backup
+  backupName: wpmy-backup-every-5-min-20250609024524
   excludedResources:
   - nodes
   - events
