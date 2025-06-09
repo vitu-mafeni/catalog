@@ -77,7 +77,7 @@ data:
           config:
             region: minio1
             s3ForcePathStyle: true
-            s3Url: http://192.168.28.187:32077
+            s3Url: http://192.168.28.137:31845
       disableInformerCache: false
 
     rbac:
@@ -100,4 +100,24 @@ data:
 
     backupsEnabled: true
     snapshotsEnabled: false
-    deployNodeAgent: false
+    features: EnableCSI
+
+    # Whether to deploy the node-agent daemonset.
+    deployNodeAgent: true
+
+    nodeAgent:
+      podVolumePath: /var/lib/kubelet/pods
+      pluginVolumePath: /var/lib/kubelet/plugins
+      # Pod priority class name to use for the node-agent daemonset. Optional.
+      priorityClassName: ""
+      # Pod runtime class name to use for the node-agent daemonset. Optional.
+      runtimeClassName: ""
+      # Resource requests/limits to specify for the node-agent daemonset deployment. Optional.
+      # https://velero.io/docs/v1.6/customize-installation/#customize-resource-requests-and-limits
+      resources: {}
+        # requests:
+        #   cpu: 500m
+        #   memory: 512Mi
+        # limits:
+        #   cpu: 1000m
+        #   memory: 1024Mi

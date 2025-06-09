@@ -1,14 +1,14 @@
 apiVersion: velero.io/v1
 kind: Backup
 metadata:
-  name: core-backup
+  name: example-backup
   namespace: velero
 spec:
   csiSnapshotTimeout: 10m0s
-  defaultVolumesToFsBackup: false
+  defaultVolumesToFsBackup: true
   hooks: {}
   includedNamespaces:
-  - nginx-example
+  - wordpress
   itemOperationTimeout: 4h0m0s
   metadata: {}
   snapshotMoveData: false
