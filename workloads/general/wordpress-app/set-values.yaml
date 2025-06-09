@@ -21,11 +21,11 @@ source: |-
 
     for r in resources:
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
-        r["metadata"]["name"] = clusterName+"-wordpress"
+        r["metadata"]["name"] = clusterName+"-"+r["metadata"]["name"]
         r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/cluster-policy"] = "true"
         r["metadata"]["annotations"]["transition.dcnlab.ssu.ac.kr/packageName"] = packageName
       if krmfn.match_gvk(r, "v1", "Service"):
-        r["metadata"]["name"] = clusterName+"-wordpress"
+        r["metadata"]["name"] = clusterName+"-"+r["metadata"]["name"]
 
   set_values(ctx.resource_list["items"])
 ## MAKE SURE TO ADD PACKAGE AND CLUSTER NAME TO THE WORKLOADCLUSTER CR SO IT CAN POPULATE THE CORRECT CLUSTER NAME TO OTHER RESOURCES
