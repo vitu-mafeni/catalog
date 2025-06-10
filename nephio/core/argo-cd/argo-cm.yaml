@@ -21,7 +21,7 @@ data:
       - Backup
       clusters:
       - "*"
-
+      labelSelector: "!gitops-managed"
 ---
 apiVersion: v1
 kind: ConfigMap

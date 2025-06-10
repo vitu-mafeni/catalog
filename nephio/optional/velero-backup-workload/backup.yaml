@@ -3,6 +3,8 @@ kind: Backup
 metadata:
   name: example-backup
   namespace: velero
+  labels:
+    gitops-managed: "true"
 spec:
   csiSnapshotTimeout: 10m0s
   defaultVolumesToFsBackup: true
