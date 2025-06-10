@@ -15,6 +15,12 @@ data:
       - "ApplyReplacements"
       clusters:
       - https://kubernetes.default.svc
+    - apiGroups:
+      - "velero.io"
+      kinds:
+      - Backup
+      clusters:
+      - "*"
 
 ---
 apiVersion: v1
