@@ -1,12 +1,12 @@
 apiVersion: config.porch.kpt.dev/v1alpha1
 kind: PackageVariant
 metadata:
-  name: example-onghorn-storage-provisioner
+  name: example-longhorn-storage-provisioner
 spec:
   annotations:
     approval.nephio.org/policy: initial
   upstream:
-    package: onghorn-storage-provisioner
+    package: longhorn-storage-provisioner
     repo: catalog-infra-capi
     revision: v2.0.0
   downstream:
