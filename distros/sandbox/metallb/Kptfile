@@ -5,4 +5,4 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 info:
-  description: metallb package to deploy MetalLB
+  description: metallb CRDS package to deploy MetalLB
