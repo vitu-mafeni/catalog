@@ -32,6 +32,8 @@ spec:
   - name: cuup-nf-config
     apiVersion: workload.nephio.org/v1alpha1
     kind: NFConfig
+    namespace: oai-ran-cuup
   - apiVersion: ref.nephio.org/v1alpha1
     kind: Config
     name: oai-cucp-config
+    namespace: oai-ran-cuup

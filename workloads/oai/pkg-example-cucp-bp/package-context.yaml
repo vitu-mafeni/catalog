@@ -6,4 +6,5 @@ metadata:
     config.kubernetes.io/local-config: "true"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 data:
-  name: example
+  name: oai-ran-cucp
+  package-path: oai-ran-cucp
