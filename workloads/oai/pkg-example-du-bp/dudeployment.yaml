@@ -14,6 +14,8 @@ spec:
   - apiVersion: workload.nephio.org/v1alpha1
     kind: NFConfig
     name: du-nf-config
+    namespace: oai-ran-du
   - apiVersion: ref.nephio.org/v1alpha1
     kind: Config
     name: oai-cucp-config
+    namespace: oai-ran-du
