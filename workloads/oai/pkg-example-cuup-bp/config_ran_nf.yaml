@@ -9,6 +9,7 @@ spec:
       kind: RANConfig
       metadata:
         name: ranconfig
+        namespace: default
       spec:
         gNBID: 12
         gNBName: oai-benetel
@@ -17,6 +18,7 @@ spec:
       kind: PLMN
       metadata:
         name: plmn
+        namespace: default
       spec:
         PLMNInfo:
         - plmnID:
