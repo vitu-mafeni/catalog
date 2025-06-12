@@ -1,35 +1,37 @@
 apiVersion: workload.nephio.org/v1alpha1
 kind: NFConfig
-metadata:
-  name: cucp-nf-config
-  namespace: example
+metadata: # kpt-merge: example/cucp-nf-config
+  name: oai-cucp-config
+  namespace: oai-ran-cucp
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'workload.nephio.org|NFConfig|example|cucp-nf-config'
 spec:
   configRefs:
   - apiVersion: workload.nephio.org/v1alpha1
     kind: RANConfig
     metadata:
       name: ranconfig
-      namespace: default
+      namespace: oai-ran-cucp
     spec:
       cellIdentity: 12345678L
       physicalCellID: 0
       tac: 1
       downlinkFrequencyBand: 78
       downlinkSubCarrierSpacing: 1
-      downlinkCarrierBandwidth: 51
+      downlinkCarrierBandwidth: 106
       uplinkFrequencyBand: 78
       uplinkSubCarrierSpacing: 1
-      uplinkCarrierBandwidth: 51
+      uplinkCarrierBandwidth: 106
   - apiVersion: workload.nephio.org/v1alpha1
     kind: PLMN
     metadata:
       name: plmn
-      namespace: default
+      namespace: oai-ran-cucp
     spec:
       PLMNInfo:
       - plmnID:
-          mcc: "001"
-          mnc: "01"
+          mcc: "208"
+          mnc: "99"
         tac: 1
         nssai:
         - sd: ffffff
@@ -38,7 +40,6 @@ spec:
     kind: OAIConfig
     metadata:
       name: oai-nf-config
-      namespace: default
+      namespace: oai-ran-cucp
     spec:
-      # The following image is temporary and will be replaced in the future
-      image: "arorasagar/testing-images:oai-gnb-telnet"
+      image: "docker.io/oaisoftwarealliance/oai-gnb:2023.w19"
