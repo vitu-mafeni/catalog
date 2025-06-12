@@ -40,4 +40,4 @@ spec:
       name: oai-nf-config
       namespace: oai-ran-du
     spec:
-      image: "docker.io/oaisoftwarealliance/oai-gnb:2023.w19"
+      image: "arorasagar/testing-images:oai-gnb-telnet"
