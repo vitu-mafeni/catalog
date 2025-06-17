@@ -2,7 +2,7 @@ apiVersion: ref.nephio.org/v1alpha1
 kind: Config
 metadata:
   name: cucp-ran-amf-core
-  namespace: example
+  namespace: oai-ran-cucp
   annotations:
     specializer.nephio.org/owner: req.nephio.org/v1alpha1.Dependency.amf
 spec:

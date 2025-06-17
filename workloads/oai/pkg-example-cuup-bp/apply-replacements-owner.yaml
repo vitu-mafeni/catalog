@@ -32,7 +32,6 @@ replacements:
     options:
       delimiter: '-'
       index: 1
-
   - select:
       kind: NetworkAttachmentDefinition
     fieldPaths:

@@ -7,4 +7,9 @@ metadata:
     kpt.dev/config-injection: required
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
-  clusterName: example
+  clusterName: regional
+  cnis:
+  - ipvlan
+  - macvlan
+  - sriov
+  masterInterface: ens5

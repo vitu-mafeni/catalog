@@ -1,8 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata: # kpt-merge: oai-ran-operators/oai-ran-operator
   namespace: oai-ran-operators
   name: oai-ran-operator
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|oai-ran-operators|oai-ran-operator'
 spec:
   replicas: 1
   selector:
@@ -19,7 +21,7 @@ spec:
       serviceAccountName: oai-ran-operator
       containers:
       - name: operator
-        image: docker.io/nephio/oai-ran-controller:v4.0.0
+        image: docker.io/nephio/oai-ran-controller:v3.0.0
         resources:
           limits:
             cpu: 500m
