@@ -18,10 +18,10 @@ spec:
       tac: 1
       downlinkFrequencyBand: 78
       downlinkSubCarrierSpacing: 1
-      downlinkCarrierBandwidth: 106
+      downlinkCarrierBandwidth: 51
       uplinkFrequencyBand: 78
       uplinkSubCarrierSpacing: 1
-      uplinkCarrierBandwidth: 106
+      uplinkCarrierBandwidth: 51
   - apiVersion: workload.nephio.org/v1alpha1
     kind: PLMN
     metadata:
@@ -30,8 +30,8 @@ spec:
     spec:
       PLMNInfo:
       - plmnID:
-          mcc: "208"
-          mnc: "99"
+          mcc: "001"
+          mnc: "01"
         tac: 1
         nssai:
         - sd: ffffff

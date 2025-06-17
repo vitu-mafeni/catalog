@@ -7,36 +7,32 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 replacements:
 - source:
-    kind: WorkloadCluster
-    name: workload-cluster
-    fieldPath: spec.clusterName
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.name
   targets:
   - select:
-      kind: NFDeployment
+      kind: Config
     fieldPaths:
-    - metadata.name
-    options:
-      delimiter: '-'
-      index: 1
+    - metadata.namespace
+    - spec.config.metadata.namespace
   - select:
-      kind: Interface
+      kind: NFConfig
     fieldPaths:
-    - metadata.annotations.[specializer.nephio.org/owner]
-    options:
-      delimiter: '-'
-      index: 1
-  - select:
-      kind: Dependency
-    fieldPaths:
-    - metadata.annotations.[specializer.nephio.org/owner]
-    options:
-      delimiter: '-'
-      index: 1
-
+    - metadata.namespace
+    - spec.configRefs.0.metadata.namespace
+    - spec.configRefs.1.metadata.namespace
+    - spec.configRefs.2.metadata.namespace
+  # - select:
+  #     kind: Interface
+  #   fieldPaths:
+  #   - metadata.annotations.[specializer.nephio.org/namespace]
+  # - select:
+  #     kind: Dependency
+  #   fieldPaths:
+  #   - metadata.annotations.[specializer.nephio.org/namespace]
   - select:
       kind: NetworkAttachmentDefinition
     fieldPaths:
-    - metadata.name
-    options:
-      delimiter: '-'
-      index: 1
+    - metadata.namespace
+    # - metadata.annotations.[specializer.nephio.org/namespace]

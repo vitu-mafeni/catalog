@@ -1,10 +1,17 @@
 apiVersion: infra.nephio.org/v1alpha1
 kind: WorkloadCluster
-metadata:
+metadata: # kpt-merge: /workload-cluster
   name: workload-cluster
   annotations:
     config.kubernetes.io/local-config: "true"
     kpt.dev/config-injection: required
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    internal.kpt.dev/upstream-identifier: 'infra.nephio.org|WorkloadCluster|default|workload-cluster'
+    kpt.dev/injected-resource: edge
 spec:
-  clusterName: example
+  clusterName: edge
+  cnis:
+  - ipvlan
+  - macvlan
+  - sriov
+  masterInterface: ens5
