@@ -17,12 +17,12 @@ source: |-
     for r in resources:
       if krmfn.match_gvk(r, "v1", "ConfigMap"):
         if r["metadata"]["name"] == "kptfile.kpt.dev":
-          if "packageName" in r["data"]:
-            packageName = r["data"]["packageName"]
-          if "clusterName" in r["data"]:
-            clusterName = r["data"]["clusterName"]
-        # packageName = r["spec"]["packageName"]
-        # clusterName = r["spec"]["clusterName"]
+          # if "packageName" in r["data"]:
+            # packageName = r["data"]["packageName"]
+          # if "clusterName" in r["data"]:
+            # clusterName = r["data"]["clusterName"]
+          packageName = r["spec"]["packageName"]
+          clusterName = r["spec"]["clusterName"]
 
     for r in resources:
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
