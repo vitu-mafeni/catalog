@@ -21,8 +21,8 @@ source: |-
             # packageName = r["data"]["packageName"]
           # if "clusterName" in r["data"]:
             # clusterName = r["data"]["clusterName"]
-          packageName = r["spec"]["packageName"]
-          clusterName = r["spec"]["clusterName"]
+          packageName = r["data"]["packageName"]
+          clusterName = r["data"]["clusterName"]
 
     for r in resources:
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
