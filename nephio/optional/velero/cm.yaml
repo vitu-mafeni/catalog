@@ -99,7 +99,7 @@ data:
           aws_secret_access_key=secret1234
 
     backupsEnabled: true
-    snapshotsEnabled: true
+    snapshotsEnabled: false
     features: EnableCSI
 
     # Whether to deploy the node-agent daemonset.
