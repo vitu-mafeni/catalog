@@ -22,6 +22,5 @@ spec:
   schedule: '*/5 * * * *'
   skipImmediately: false
   template:
-    defaultVolumesToFsBackup: true
     includedNamespaces:
     - wordpress
