@@ -15,9 +15,14 @@ source: |-
     # if a WorkloadCluster exists, and was injected, then use that for the name
 
     for r in resources:
-      if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster"):
-        packageName = r["spec"]["packageName"]
-        clusterName = r["spec"]["clusterName"]
+      if krmfn.match_gvk(r, "v1", "ConfigMap"):
+        if r["metadata"]["name"] == "kptfile.kpt.dev":
+          if "packageName" in r["data"]:
+            packageName = r["data"]["packageName"]
+          if "clusterName" in r["data"]:
+            clusterName = r["data"]["clusterName"]
+        # packageName = r["spec"]["packageName"]
+        # clusterName = r["spec"]["clusterName"]
 
     for r in resources:
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
