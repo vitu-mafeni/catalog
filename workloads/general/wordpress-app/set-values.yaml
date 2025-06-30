@@ -14,17 +14,22 @@ source: |-
 
     # if a WorkloadCluster exists, and was injected, then use that for the name
 
+    # for r in resources:
+    #   if krmfn.match_gvk(r, "v1", "ConfigMap"):
+    #     if r["metadata"]["name"] == "kptfile.kpt.dev":
+    #       # if "packageName" in r["data"]:
+    #         # packageName = r["data"]["packageName"]
+    #       # if "clusterName" in r["data"]:
+    #         # clusterName = r["data"]["clusterName"]
+    #       packageName = r["data"]["packageName"]
+    #       clusterName = r["data"]["clusterName"]
     for r in resources:
-      if krmfn.match_gvk(r, "v1", "ConfigMap"):
-        if r["metadata"]["name"] == "kptfile.kpt.dev":
-          # if "packageName" in r["data"]:
-            # packageName = r["data"]["packageName"]
-          # if "clusterName" in r["data"]:
-            # clusterName = r["data"]["clusterName"]
-          packageName = r["data"]["packageName"]
-          clusterName = r["data"]["clusterName"]
-
+      if krmfn.match_gvk(r, "v1", "ConfigMap") and r["metadata"].get("name") == "kptfile.kpt.dev":
+        data = r.get("data", {})
+        packageName = data.get("packageName", "")
+        clusterName = data.get("clusterName", "")
     for r in resources:
+      print(packageName, clusterName)
       if krmfn.match_gvk(r, "apps/v1", "Deployment"):
         if r["metadata"]["name"] != "wordpress-mysql":
           r["metadata"]["name"] = clusterName+"-"+r["metadata"]["name"]
