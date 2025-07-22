@@ -4,6 +4,32 @@ metadata:
   labels:
     app.kubernetes.io/name: kt-cloud-operator
     app.kubernetes.io/managed-by: kustomize
-  name: ktcluster-sample
+  name: kt-cluster1
 spec:
-  # TODO(user): Add fields here
+  # apiServerLoadBalancer:
+  #   enabled: false
+  controlPlaneExternalNetworkEnable: true
+  identityRef:
+    # cloudName: openstack
+    name: kt-cluster1-cloud-config
+  managedSecurityGroups:
+    enableOutboundInternetTraffic: true 
+    controlPlaneRules:
+      direction: ingress
+      startPort: "1"
+      endPort: "65535"
+      protocol: ALL
+      dstip: "0.0.0.0/0"
+      action: "true" # true means allow, false means deny
+    workerRules:
+      direction: egress
+      startPort: "1"
+      endPort: "65535"
+      protocol: ALL
+      dstip: "0.0.0.0/0"
+      action: "true" # true means allow, false means deny
+  # managedSubnets:
+  # - cidr: 10.6.0.0/24
+  #   dnsNameservers:
+  #   - 8.8.8.8
+
