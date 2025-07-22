@@ -4,6 +4,50 @@ metadata:
   labels:
     app.kubernetes.io/name: kt-cloud-operator
     app.kubernetes.io/managed-by: kustomize
-  name: machinedeployment-sample
+  name: kt-cluster1-control-plane
 spec:
-  # TODO(user): Add fields here
+  type: control-plane
+  replicas: 1
+  # selector:
+  #   matchLabels: null
+  template:
+    spec:
+      # bootstrap:
+      #   configRef:
+      #     apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+      #     kind: KubeadmConfigTemplate
+      #     name: openstack-nephio-md-0
+      clusterName: kt-cluster1
+      failureDomain: DX-G
+      infrastructureRef:
+        apiVersion: infrastructure.dcnlab.ssu.ac.kr/v1beta1
+        kind: KTCluster
+        name: kt-cluster1
+      version: v1.30.0
+---
+apiVersion: infrastructure.dcnlab.ssu.ac.kr/v1beta1
+kind: MachineDeployment
+metadata:
+  labels:
+    app.kubernetes.io/name: kt-cloud-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: kt-cluster1-md-0
+spec:
+  type: worker
+  replicas: 1
+  # selector:
+  #   matchLabels: null
+  template:
+    spec:
+      # bootstrap:
+      #   configRef:
+      #     apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+      #     kind: KubeadmConfigTemplate
+      #     name: openstack-nephio-md-0
+      clusterName: kt-cluster1
+      failureDomain: DX-G
+      infrastructureRef:
+        apiVersion: infrastructure.dcnlab.ssu.ac.kr/v1beta1
+        kind: KTCluster
+        name: kt-cluster1
+      version: v1.30.0
