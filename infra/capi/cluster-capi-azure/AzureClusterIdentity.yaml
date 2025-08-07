@@ -1,0 +1,15 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureClusterIdentity
+metadata:
+  name: capz-sp-identity
+  namespace: default
+spec:
+  type: ServicePrincipal
+  clientID: d536949a-76e8-41db-972f-f05134b35566
+  clientSecret:
+    name: capi-test-sp-secret
+    namespace: default
+  tenantID: 74a56a1c-7c89-4eb7-9fa7-295c71c711e1
+  allowedNamespaces:
+    list:
+      - default
