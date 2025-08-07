@@ -1,0 +1,21 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureCluster
+metadata:
+  name: azure-nephio
+  namespace: default
+spec:
+  identityRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: AzureClusterIdentity
+    name: capz-sp-identity
+  location: koreasouth
+  networkSpec:
+    subnets:
+      - name: control-plane-subnet
+        role: control-plane
+      - name: node-subnet
+        role: node
+    vnet:
+      name: azure-nephio-vnet
+  resourceGroup: capi-test
+  subscriptionID: 91414a5d-9d4e-4b1a-8de6-d0a95a6d0490
