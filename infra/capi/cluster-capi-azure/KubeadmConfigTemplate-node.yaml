@@ -1,0 +1,23 @@
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: azure-nephio-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      files:
+        - contentFrom:
+            secret:
+              key: worker-node-azure.json
+              name: azure-nephio-md-0-azure-json
+          owner: root:root
+          path: /etc/kubernetes/azure.json
+          permissions: "0644"
+      joinConfiguration:
+        apiVersion: kubeadm.k8s.io/v1beta3
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-provider: external
+          name: '{{ ds.meta_data["local_hostname"] }}'
+      preKubeadmCommands: []

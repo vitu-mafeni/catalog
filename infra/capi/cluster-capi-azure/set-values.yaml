@@ -1,0 +1,69 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata:
+  name: set-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+source: |-
+  load("krmfn.star", "krmfn")
+
+  def set_values1(resources):
+    for r in resources:
+      if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster"):
+        new_cluster_name = r["spec"]["clusterName"]
+    # Apply the new cluster name to the Cluster, AzureCluster, KubeadmConfigTemplate, KubeadmControlPlane, MachineDeployment, and AzureMachineTemplate resources not forgetting Azure json Secret
+    for r in resources:
+      if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "Cluster"):
+        r["metadata"]["name"] = new_cluster_name
+        r["spec"]["controlPlaneRef"]["name"] = new_cluster_name + "-control-plane"
+        r["spec"]["infrastructureRef"]["name"] = new_cluster_name
+      if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "AzureCluster"):
+        r["metadata"]["name"] = new_cluster_name
+        r["spec"]["identityRef"]["name"] = new_cluster_name + "-sp-identity"
+      if krmfn.match_gvk(r, "controlplane.cluster.x-k8s.io/v1beta1", "KubeadmControlPlane"):
+        r["metadata"]["name"] = new_cluster_name + "-control-plane"
+        r["spec"]["kubeadmConfigSpec"]["clusterConfiguration"]["controllerManager"]["extraArgs"]["cluster-name"] = new_cluster_name
+        r["spec"]["kubeadmConfigSpec"]["files"][0]["contentFrom"]["secret"]["name"] = new_cluster_name + "-control-plane-azure-json"
+        r["spec"]["machineTemplate"]["infrastructureRef"]["name"] = new_cluster_name + "-control-plane"
+
+
+
+      if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "AzureMachineTemplate"):
+        if r["metadata"]["name"].endswith("-control-plane"):
+          r["metadata"]["name"] = new_cluster_name + "-control-plane"
+        elif r["metadata"]["name"].endswith("-md-0"):
+          r["metadata"]["name"] = new_cluster_name + "-md-0"
+
+      if krmfn.match_gvk(r, "bootstrap.cluster.x-k8s.io/v1beta1", "KubeadmConfigTemplate"):
+        if r["metadata"]["name"].endswith("-md-0"):
+          r["metadata"]["name"] = new_cluster_name + "-md-0"
+          r["spec"]["template"]["spec"]["files"][0]["contentFrom"]["secret"]["name"] = new_cluster_name + "-md-0-azure-json"
+      if krmfn.match_gvk(r, "cluster.x-k8s.io/v1beta1", "MachineDeployment"):
+        if r["metadata"]["name"].endswith("-md-0"):
+          r["metadata"]["name"] = new_cluster_name + "-md-0"
+          r["spec"]["clusterName"] = new_cluster_name
+          r["spec"]["template"]["spec"]["clusterName"] = new_cluster_name
+          r["spec"]["template"]["spec"]["bootstrap"]["configRef"]["name"] = new_cluster_name + "-md-0"
+          r["spec"]["template"]["spec"]["infrastructureRef"]["name"] = new_cluster_name + "-md-0"
+
+  def set_values2(resources):
+    for r in resources:
+      if krmfn.match_gvk(r, "infra.nephio.org/v1alpha1", "WorkloadCluster"):
+        new_cluster_name = r["spec"]["clusterName"]
+
+    for r in resources:
+      if krmfn.match_gvk(r, "v1", "Secret"):
+        if r["metadata"]["name"] == "azure-nephio-control-plane-azure-json":
+          r["metadata"]["name"] = new_cluster_name + "-control-plane-azure-json"
+        elif r["metadata"]["name"] == "azure-nephio-md-0-azure-json":
+          r["metadata"]["name"] = new_cluster_name + "-md-0-azure-json"
+        elif r["metadata"]["name"] == "capi-test-sp-secret":
+          r["metadata"]["name"] = new_cluster_name + "-sp-secret"
+
+      if krmfn.match_gvk(r, "infrastructure.cluster.x-k8s.io/v1beta1", "AzureClusterIdentity"):
+        r["metadata"]["name"] = new_cluster_name + "-sp-identity"
+        r["spec"]["clientSecret"]["name"]= new_cluster_name + "-sp-secret"
+
+  set_values1(ctx.resource_list["items"])
+  set_values2(ctx.resource_list["items"])

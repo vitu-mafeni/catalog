@@ -1,0 +1,19 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureMachineTemplate
+metadata:
+  name: azure-nephio-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      osDisk:
+        diskSizeGB: 128
+        osType: Linux
+      sshPublicKey: "c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FEYnk2ZUp5MHd5TjhidjFIWWJaNkhPcDJRTnVqeUhvdVZtSTFZbkpHMmlFN3FOdGt5UFZtbkcxTkVJUGhDNkVTeHM5RW1ObGZ4NU42bTNoeHByaWJ0N3ZiMmNudGNHQTlXT2FLVDlYc1pmZlI4cGdmSlJUcW5HZTNQeGRRRzZIS1pFLzBLMVZnbEV3b3gySUgxNDFTdHprZHJmdkxZQzdiRTlrSDU3c0ZHZDFEMm5XQ3NOcW9uL0E1aEhNL3FqMzJ2TW94dk54Z3ZncUVwQ2IvU3BQVEE4VFl2VTlTTUJzSW1TbFRlbTVRbTRDOG0vUUZXLzZZU1dSdTVpZXNNTU9idStEdHduTSt0dm12RGpGV2dnQ0V6ZzBQNUptV2NiOWVnOHRJS2JuWkFHNldnaStHWnFQTHBKNWVxeDNTM1Ryb0c3RTdPaXZuMVFLMHprM29BK0ZubjdCYnk3S2NsV2lzTTM5bDlPWXhWZjQ1em5ZeVF0MWJpNTZ1UEgxV0FmT3FDV2k4MmwrNE9HK0hVak5WZmw5ZHFsdEt2TjVPSVhSMlNYMkpuK0lOK3dLTlJjRkgzN2hHdkFQR2hSUjArYlB5aHdPMmhEWGZSYUZEMFVQU1cxSklsb3U4enJ4WFNTZWxoUHlnM2VhZjVlME1VODJOTk9PT0s0cmdKTXpxUDVSRGs9IGdlbmVyYXRlZC1ieS1henVyZQo="
+      vmSize: Standard_D2s_v3
+      image:
+        marketplace:
+          publisher: cncf-upstream
+          offer: capi
+          sku: ubuntu-2204-gen1
+          version: 130.3.20240717  # or use "latest"

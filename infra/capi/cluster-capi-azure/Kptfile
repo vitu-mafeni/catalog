@@ -1,0 +1,12 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: cluster-api-azure
+  annotations:
+    config.kubernetes.io/local-config: "true"
+info:
+  description: Provisions a Kubernetes cluster on Azure using Cluster API and Azure provider.
+pipeline:
+  mutators:
+  - image: gcr.io/kpt-fn/starlark:v0.4.3
+    configPath: set-values.yaml
