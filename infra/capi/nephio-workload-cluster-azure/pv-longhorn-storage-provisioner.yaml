@@ -1,0 +1,24 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: example-longhorn-storage-provisioner
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: longhorn-storage-provisioner
+    repo: catalog-infra-capi
+    revision: v2.0.0
+  downstream:
+    package: example-longhorn-storage-provisioner
+    repo: mgmt-staging
+  injectors:
+  - kind: WorkloadCluster
+    name: example
+  pipeline:
+    mutators:
+    - image: gcr.io/kpt-fn/set-annotations:v0.1.4
+      configMap:
+        nephio.org/cluster-name: example
+        
+

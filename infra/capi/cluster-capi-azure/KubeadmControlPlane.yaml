@@ -1,0 +1,71 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: azure-nephio-control-plane
+  namespace: default
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs: {}
+        timeoutForControlPlane: 20m
+      controllerManager:
+        extraArgs:
+          allocate-node-cidrs: "false"
+          cloud-provider: external
+          cluster-name: azure-nephio
+      etcd:
+        local:
+          dataDir: /var/lib/etcddisk/etcd
+          extraArgs:
+            quota-backend-bytes: "8589934592"
+    diskSetup:
+      filesystems:
+        - device: /dev/disk/azure/scsi1/lun0
+          extraOpts:
+            - -E
+            - lazy_itable_init=1,lazy_journal_init=1
+          filesystem: ext4
+          label: etcd_disk
+        - device: ephemeral0.1
+          filesystem: ext4
+          label: ephemeral0
+          replaceFS: ntfs
+      partitions:
+        - device: /dev/disk/azure/scsi1/lun0
+          layout: true
+          overwrite: false
+          tableType: gpt
+    files:
+      - contentFrom:
+          secret:
+            key: control-plane-azure.json
+            name: azure-nephio-control-plane-azure-json
+        owner: root:root
+        path: /etc/kubernetes/azure.json
+        permissions: "0644"
+    initConfiguration:
+      apiVersion: kubeadm.k8s.io/v1beta3
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+        name: '{{ ds.meta_data["local_hostname"] }}'
+    joinConfiguration:
+      apiVersion: kubeadm.k8s.io/v1beta3
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: external
+        name: '{{ ds.meta_data["local_hostname"] }}'
+    mounts:
+      - - LABEL=etcd_disk
+        - /var/lib/etcddisk
+    postKubeadmCommands: []
+    preKubeadmCommands: []
+    verbosity: 10
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: AzureMachineTemplate
+      name: azure-nephio-control-plane
+  replicas: 1
+  version: v1.30.0
