@@ -6,6 +6,15 @@ metadata:
 spec:
   template:
     spec:
+      preKubeadmCommands:
+        - curl -LO https://github.com/containerd/containerd/releases/download/v2.1.4/containerd-2.1.4-linux-amd64.tar.gz
+        - tar xzf containerd-2.1.4-linux-amd64.tar.gz
+        - systemctl stop kubelet || true
+        - systemctl stop containerd || true
+        - pkill -9 containerd-shim-runc-v2 || true
+        - cp -f bin/* /usr/local/bin/
+        - systemctl daemon-reexec
+        - systemctl start containerd
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
