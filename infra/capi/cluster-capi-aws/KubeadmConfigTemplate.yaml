@@ -7,14 +7,29 @@ spec:
   template:
     spec:
       preKubeadmCommands:
-        - curl -LO https://github.com/containerd/containerd/releases/download/v2.1.4/containerd-2.1.4-linux-amd64.tar.gz
-        - tar xzf containerd-2.1.4-linux-amd64.tar.gz
-        - systemctl stop kubelet || true
-        - systemctl stop containerd || true
-        - pkill -9 containerd-shim-runc-v2 || true
-        - cp -f bin/* /usr/local/bin/
-        - systemctl daemon-reexec
-        - systemctl start containerd
+        - |
+          # Download containerd
+          curl -LO https://github.com/containerd/containerd/releases/download/v2.1.4/containerd-2.1.4-linux-amd64.tar.gz
+
+          # Extract containerd to a temporary directory
+          mkdir -p /tmp/containerd
+          tar -xzf containerd-2.1.4-linux-amd64.tar.gz -C /tmp/containerd
+
+          # Stop kubelet and containerd services safely
+          systemctl stop kubelet || true
+          systemctl stop containerd || true
+
+          # Kill any lingering containerd shim processes
+          pkill -9 containerd-shim-runc-v2 || true
+
+          # Copy only containerd binaries explicitly to /usr/local/bin
+          cp -f /tmp/containerd/bin/containerd /usr/local/bin/
+          cp -f /tmp/containerd/bin/ctr /usr/local/bin/
+          cp -f /tmp/containerd/bin/containerd-shim /usr/local/bin/
+
+          # Re-execute systemd daemon and start containerd
+          systemctl daemon-reexec
+          systemctl start containerd
       joinConfiguration:
         nodeRegistration:
           kubeletExtraArgs:
