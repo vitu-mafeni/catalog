@@ -15,7 +15,7 @@ spec:
           EOF
 
         - apt-get update
-        - DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
+        - DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
         # Fix broken packages if any
         - apt-get --fix-broken install -y || true
@@ -37,5 +37,5 @@ spec:
         - tar -xvf criu-4.1.1.tar.gz
         - cd criu-4.1.1
         - make
-        - sudo make install
+        - make install
         - criu -V
