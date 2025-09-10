@@ -12,17 +12,21 @@ spec:
       controllerManager:
         extraArgs:
           cloud-provider: external
-    files: []
+    preKubeadmCommands:
+    - |
+      # Get the primary local IP
+      LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+      # Persist kubelet args
+      echo "KUBELET_EXTRA_ARGS=--node-ip=$LOCAL_IP --cloud-provider=external" > /etc/default/kubelet
     initConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          cloud-provider: external
           provider-id: openstack:///'{{ instance_id }}'
         name: '{{ local_hostname }}'
     joinConfiguration:
       nodeRegistration:
         kubeletExtraArgs:
-          cloud-provider: external
           provider-id: openstack:///'{{ instance_id }}'
         name: '{{ local_hostname }}'
   machineTemplate:

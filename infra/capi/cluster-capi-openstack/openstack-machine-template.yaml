@@ -9,5 +9,5 @@ spec:
       flavor: m1.large
       image:
         filter:
-          name: kube-ubuntu2004
+          name: Ubuntu2204-Kube-1.32
       sshKeyName: mykey
