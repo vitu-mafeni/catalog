@@ -6,10 +6,39 @@ metadata:
 spec:
   template:
     spec:
+      preKubeadmCommands:
+      - |
+        # Get the primary local IP
+        LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+        # Persist kubelet args
+        echo "KUBELET_EXTRA_ARGS=--node-ip=$LOCAL_IP --cloud-provider=external --feature-gates=ContainerCheckpoint=true" > /etc/default/kubelet
+
+        # Download containerd
+        curl -LO https://github.com/containerd/containerd/releases/download/v2.1.4/containerd-2.1.4-linux-amd64.tar.gz
+
+        # Extract containerd to a temporary directory
+        mkdir -p /tmp/containerd
+        tar -xzf containerd-2.1.4-linux-amd64.tar.gz -C /tmp/containerd
+
+        # Stop kubelet and containerd services safely
+        systemctl stop kubelet || true
+        systemctl stop containerd || true
+
+        # Kill any lingering containerd shim processes
+        pkill -9 containerd-shim-runc-v2 || true
+
+        # Copy only containerd binaries explicitly to /usr/local/bin
+        cp -f /tmp/containerd/bin/containerd /usr/local/bin/
+        cp -f /tmp/containerd/bin/ctr /usr/local/bin/
+        cp -f /tmp/containerd/bin/containerd-shim /usr/local/bin/
+
+        # Re-execute systemd daemon and start containerd
+        systemctl daemon-reexec
+        systemctl start containerd
       files: []
       joinConfiguration:
         nodeRegistration:
+          name: ""
           kubeletExtraArgs:
-            cloud-provider: external
             provider-id: openstack:///'{{ instance_id }}'
-          name: '{{ local_hostname }}'
