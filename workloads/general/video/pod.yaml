@@ -4,6 +4,9 @@ metadata:
   name: video
   labels:
     app: video
+  annotations:
+    transition.dcnlab.ssu.ac.kr/cluster-policy: "true"
+    transition.dcnlab.ssu.ac.kr/packageName: "video"
 spec:
   containers:
   - name: vlc
