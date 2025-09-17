@@ -35,4 +35,4 @@ spec:
       kind: OpenStackMachineTemplate
       name: example-control-plane
   replicas: 1
-  version: v1.30.0
+  version: v1.32.0
