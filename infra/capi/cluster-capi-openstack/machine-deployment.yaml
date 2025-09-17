@@ -16,9 +16,9 @@ spec:
           kind: KubeadmConfigTemplate
           name: example-md-0
       clusterName: example
-      failureDomain: nova
+      failureDomain: compute
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: OpenStackMachineTemplate
         name: example-md-0
-      version: v1.30.0
+      version: v1.32.0
