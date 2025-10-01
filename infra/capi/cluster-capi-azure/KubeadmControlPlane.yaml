@@ -67,7 +67,7 @@ spec:
       - - LABEL=etcd_disk
         - /var/lib/etcddisk
     postKubeadmCommands: []
-    preKubeadmCommands: []
+    # preKubeadmCommands: []
     verbosity: 10
   machineTemplate:
     infrastructureRef:
