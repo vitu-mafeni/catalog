@@ -36,4 +36,5 @@ spec:
         nodeRegistration:
           kubeletExtraArgs:
             cloud-provider: external
+            node-ip: '{{ ds.meta_data.local_ipv4 }}'
           name: '{{ ds.meta_data.local_hostname }}'
