@@ -5,6 +5,13 @@ metadata:
   namespace: default
 spec:
   kubeadmConfigSpec:
+    preKubeadmCommands:
+    - |
+      # Get the primary local IP
+      LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+      # Persist kubelet args
+      echo "KUBELET_EXTRA_ARGS=--node-ip=$LOCAL_IP --cloud-provider=external" > /etc/default/kubelet
     clusterConfiguration:
       apiServer:
         extraArgs: {}
