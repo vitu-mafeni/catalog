@@ -8,6 +8,8 @@ spec:
     spec:
       preKubeadmCommands:
         - |
+          # Get the primary local IP
+          LOCAL_IP=$(hostname -I | awk '{print $1}')
           # Download containerd
           curl -LO https://github.com/containerd/containerd/releases/download/v2.1.4/containerd-2.1.4-linux-amd64.tar.gz
 
