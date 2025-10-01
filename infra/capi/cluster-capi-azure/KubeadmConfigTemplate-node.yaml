@@ -50,4 +50,4 @@ spec:
           kubeletExtraArgs:
             cloud-provider: external
           name: '{{ ds.meta_data["local_hostname"] }}'
-      preKubeadmCommands: []
+      # preKubeadmCommands: []
