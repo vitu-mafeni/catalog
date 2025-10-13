@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    annotations:
+        transition.dcnlab.ssu.ac.kr/cluster-policy: "true"
+        transition.dcnlab.ssu.ac.kr/packageName: video
+    labels:
+        app: video
+    name: video
+    namespace: default
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: video
+    template:
+        metadata:
+            labels:
+                app: video
+        spec:
+            containers:
+                - args:
+                    - frozen.mp4
+                    - --loop
+                    - --sout
+                    - '#transcode{scodec=none}:http{mux=ffmpeg{mux=flv},dst=:8080/}'
+                  image: tuongvx/vlc-app:latest
+                  name: vlc
+                  ports:
+                    - containerPort: 8080
+                      protocol: TCP
