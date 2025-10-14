@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  annotations:
+    transition.dcnlab.ssu.ac.kr/cluster-policy: "true"
+    transition.dcnlab.ssu.ac.kr/packageName: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0.12
+        ports:
+        - containerPort: 6379
+        # Transient (no data persistence)
+        args: ["redis-server", "--save", "", "--appendonly", "no"]
+
+        # Uncomment below for persistent Redis using AOF and RDB snapshots
+        # args: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
