@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-training-app
+  annotations:
+    transition.dcnlab.ssu.ac.kr/cluster-policy: "true"
+    transition.dcnlab.ssu.ac.kr/packageName: ml-training
+  labels:
+    app: ml-training
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-training
+  template:
+    metadata:
+      labels:
+        app: ml-training
+    spec:
+      containers:
+      - name: ml-training-app
+        image: phuongbac/ml-training:latest
+        ports:
+        - containerPort: 5000
