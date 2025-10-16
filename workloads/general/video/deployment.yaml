@@ -25,6 +25,7 @@ spec:
                     - --sout
                     - '#transcode{scodec=none}:http{mux=ffmpeg{mux=flv},dst=:8080/}'
                   image: tuongvx/vlc-app:latest
+                  imagePullPolicy: IfNotPresent
                   name: vlc
                   ports:
                     - containerPort: 8080
