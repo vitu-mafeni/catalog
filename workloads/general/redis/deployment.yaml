@@ -18,12 +18,15 @@ spec:
         app: redis
     spec:
       containers:
-      - name: redis
-        image: redis:7.4.6
-        ports:
-        - containerPort: 6379
-        # Transient (no data persistence)
-        args: ["redis-server", "--save", "", "--appendonly", "no"]
-
-        # Uncomment below for persistent Redis using AOF and RDB snapshots
-        # args: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+        - name: redis
+          image: redis:7.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+          args:
+            - redis-server
+            # Disable persistence for stateless checkpoint
+            - --save
+            - ""
+            - --appendonly
+            - "no"
