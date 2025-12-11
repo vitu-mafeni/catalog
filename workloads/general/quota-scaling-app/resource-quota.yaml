@@ -5,7 +5,7 @@ metadata:
   namespace: quota-test
   labels:
     clusterName: example
-    repositoryUrl: https://github.com/sample/repository1
+    repositoryUrl: https://github.com/sample/repository2
 # this will detect resource shortage and trigger node scaling
 # spec:
 #   hard:
