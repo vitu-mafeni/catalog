@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-burst
+  namespace: quota-test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: quota-burst
+  template:
+    metadata:
+      labels:
+        app: quota-burst
+    spec:
+      containers:
+      - name: stress
+        image: nginx
+        # for testing Quota scaling
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        # For testing Node scaling for t3.large which has 2 vCPU and 8 GiB memory
+        # resources:
+        #   requests:
+        #     cpu: "700m"
+        #     memory: "1Gi"
+        #   limits:
+        #     cpu: "700m"
+        #     memory: "1Gi"
