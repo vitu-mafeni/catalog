@@ -15,4 +15,3 @@ replacements:
       kind: ResourceQuota
     fieldPaths:
     - metadata.labels.repositoryUrl
- 
