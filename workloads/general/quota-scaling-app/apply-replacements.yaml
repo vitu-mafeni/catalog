@@ -15,3 +15,12 @@ replacements:
       kind: ResourceQuota
     fieldPaths:
     - metadata.labels.clusterName
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.repositoryUrl
+  targets:
+  - select:
+      kind: ResourceQuota
+    fieldPaths:
+    - metadata.labels.repositoryUrl
