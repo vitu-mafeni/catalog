@@ -3,7 +3,9 @@ kind: ResourceQuota
 metadata:
   name: test-quota-small
   namespace: quota-test
-  
+  labels:
+    clusterName: example-resourceqouta
+    repositoryUrl: https://github.com/sample/repository
 # this will detect resource shortage and trigger node scaling
 # spec:
 #   hard:
