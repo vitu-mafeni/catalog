@@ -5,4 +5,4 @@ metadata:
   namespace: kyverno
 spec:
   interval: 1m
-  url: kyverno https://kyverno.github.io/kyverno
+  url: https://kyverno.github.io/kyverno
