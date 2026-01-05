@@ -1,8 +1,10 @@
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: GitRepository
 metadata:
-  name: kai-scheduler 
+  name: kai-scheduler
   namespace: kai-scheduler
 spec:
-  interval: 1m
-  url: oci://ghcr.io/nvidia/kai-scheduler
+  interval: 10m
+  url: https://github.com/NVIDIA/KAI-Scheduler
+  ref:
+    tag: v0.12.3

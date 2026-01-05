@@ -1,6 +1,6 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
-metadata:
+metadata: # kpt-merge: kueue-system/kueue
   name: kai-scheduler
   namespace: kai-scheduler
 spec:
@@ -8,10 +8,9 @@ spec:
   releaseName: kai-scheduler
   chart:
     spec:
-      chart: kai-scheduler
-      version: "v0.12.2"
+      chart: charts/kai-scheduler
       sourceRef:
-        kind: HelmRepository
+        kind: GitRepository
         name: kai-scheduler
         namespace: kai-scheduler
   valuesFrom:

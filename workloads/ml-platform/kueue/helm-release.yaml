@@ -5,15 +5,10 @@ metadata:
   namespace: kueue-system
 spec:
   interval: 1m
-  releaseName: kueue
-  chart:
-    spec:
-      chart: kueue
-      version: "0.15.2"
-      sourceRef:
-        kind: HelmRepository
-        name: kueue
-        namespace: kueue-system
+  chartRef:
+    kind: OCIRepository
+    name: kueue
+    namespace: kueue-system
   valuesFrom:
   - kind: ConfigMap
     name: kueue-values

@@ -1,8 +1,10 @@
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: kueue
   namespace: kueue-system
 spec:
-  interval: 1m
+  interval: 10m
   url: oci://registry.k8s.io/kueue/charts/kueue
+  ref:
+    tag: 0.15.2
