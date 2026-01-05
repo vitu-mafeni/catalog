@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: kubeflow-manifests
+  namespace: flux-system
+spec:
+  interval: 10m
+  url: https://github.com/kubeflow/manifests
+  ref:
+    branch: v1.11-branch   # pin this
