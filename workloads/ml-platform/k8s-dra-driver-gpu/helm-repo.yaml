@@ -5,4 +5,4 @@ metadata:
   namespace: nvidia-dra-driver-gpu
 spec:
   interval: 1m
-  url: https://nvidia.github.io/helm-charts
+  url: https://helm.ngc.nvidia.com/nvidia
