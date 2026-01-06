@@ -15,3 +15,4 @@ metadata:
     control-plane: kubeflow
     istio-injection: enabled
     pod-security.kubernetes.io/enforce: restricted
+    
