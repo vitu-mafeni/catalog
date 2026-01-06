@@ -6,6 +6,7 @@ metadata:
     pod-security.kubernetes.io/warn: "privileged"
     pod-security.kubernetes.io/audit: "privileged"
     pod-security.kubernetes.io/enforce: "privileged"
+    app.kubernetes.io/part-of: ml-platform
 ---
 kind: ConfigMap
 metadata:

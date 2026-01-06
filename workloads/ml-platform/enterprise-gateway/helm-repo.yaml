@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: enterprise-gateway
+  namespace: enterprise-gateway
+spec:
+  interval: 5m
+  url: https://github.com/lehuannhatrang/ml-platform-manifests
+  ref:
+    branch: main

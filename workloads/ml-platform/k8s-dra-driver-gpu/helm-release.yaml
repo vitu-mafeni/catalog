@@ -1,0 +1,20 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nvidia-dra-driver-gpu
+  namespace: nvidia-dra-driver-gpu
+spec:
+  interval: 1m
+  releaseName: nvidia-dra-driver-gpu
+  chart:
+    spec:
+      chart: nvidia-dra-driver-gpu
+      version: "25.8.0"
+      sourceRef:
+        kind: HelmRepository
+        name: nvidia
+        namespace: nvidia-dra-driver-gpu
+  valuesFrom:
+  - kind: ConfigMap
+    name: nvidia-dra-driver-gpu-values
+    valuesKey: values.yaml
