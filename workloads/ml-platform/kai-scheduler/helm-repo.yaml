@@ -1,10 +1,12 @@
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: GitRepository
+kind: OCIRepository
 metadata:
   name: kai-scheduler
   namespace: kai-scheduler
 spec:
   interval: 10m
-  url: https://github.com/NVIDIA/KAI-Scheduler
+  url: oci://ghcr.io/nvidia/kai-scheduler/kai-scheduler
   ref:
     tag: v0.12.3
+  # secretRef:
+  #   name: ghcr-creds   # only required if you hit rate limits
