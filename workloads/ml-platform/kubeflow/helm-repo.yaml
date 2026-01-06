@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: kubeflow-helm
+  namespace: kubeflow
+spec:
+  interval: 5m
+  url: https://github.com/vitu-mafeni/kubeflow-gitops.git
+  ref:
+    branch: main
