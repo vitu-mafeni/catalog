@@ -4,15 +4,13 @@ metadata: # kpt-merge: kueue-system/kueue
   name: kai-scheduler
   namespace: kai-scheduler
 spec:
-  interval: 1m
-  releaseName: kai-scheduler
-  chart:
-    spec:
-      chart: charts/kai-scheduler
-      sourceRef:
-        kind: GitRepository
-        name: kai-scheduler
-        namespace: kai-scheduler
+  interval: 5m
+  chartRef:
+    kind: OCIRepository
+    name: kai-scheduler
+    namespace: kai-scheduler
+  install:
+    createNamespace: true
   valuesFrom:
   - kind: ConfigMap
     name: kai-scheduler-values
