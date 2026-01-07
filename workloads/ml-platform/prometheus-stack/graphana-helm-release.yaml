@@ -7,8 +7,8 @@ spec:
   interval: 1m
   chart:
     spec:
-      chart: grafana-operator
-      version: "v5.21.4"
+      chart: grafana
+      version: "v10.5.3"
       sourceRef:
         kind: HelmRepository
         name: grafana-charts
