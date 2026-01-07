@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-enforcer-script
+  namespace: enterprise-gateway
+data:
+  00-enforce-limits.py: |
+    import os
+    import sys
+    import warnings
+    from IPython import get_ipython
+
+    # 1. Set Allow Growth instantly (Safe fallback)
+    warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf")
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
+    # 2. Define the Guard Logic
+    def _enforce_gpu_limits():
+        # Get configuration
+        limit_env = os.environ.get('KERNEL_GPU_MEMORY')
+        framework = os.environ.get('KERNEL_FRAMEWORK', 'all').lower()
+        
+        if not limit_env:
+            return # No limits requested
+
+        limit_mb = int(limit_env)
+
+        # --- TENSORFLOW STRATEGY ---
+        # We MUST import and configure TF now, before the user code runs.
+        if framework in ['tensorflow', 'all']:
+            try:
+                import tensorflow as tf
+                gpus = tf.config.list_physical_devices('GPU')
+                if gpus:
+                    for gpu in gpus:
+                        # This is the critical "Virtual Device" split
+                        config = tf.config.LogicalDeviceConfiguration(memory_limit=limit_mb)
+                        tf.config.set_logical_device_configuration(gpu, [config])
+                    
+                    # Verify
+                    log_gpus = tf.config.list_logical_devices('GPU')
+            except Exception as e:
+                pass
+
+        # --- PYTORCH STRATEGY ---
+        if framework in ['pytorch', 'all']:
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    total = torch.cuda.get_device_properties(0).total_memory / (1024**2)
+                    frac = min(limit_mb / total, 1.0)
+                    torch.cuda.set_per_process_memory_fraction(frac, 0)
+            except Exception as e:
+                pass
+
+        # 3. SELF DESTRUCT
+        # Unregister this hook so it only runs once (on the first cell)
+        try:
+            ip = get_ipython()
+            # Remove the function from the pre_execute list
+            ip.events.unregister('pre_execute', _enforce_gpu_limits)
+        except Exception as e:
+            pass
+
+    # Register the hook to run BEFORE the first cell executes
+    try:
+        ip = get_ipython()
+        ip.events.register('pre_execute', _enforce_gpu_limits)
+    except AttributeError:
+        pass

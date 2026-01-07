@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kernel-spec-tf-gpu-8gb
+  namespace: enterprise-gateway
+data:
+  kernel.json: >
+    {
+        "language": "python",
+        "display_name": "GPU: TensorFlow (8GiB VRAM)",
+        "metadata": {
+            "process_proxy": {
+            "class_name": "enterprise_gateway.services.processproxies.k8s.KubernetesProcessProxy",
+            "config": {
+                "image_name": "elyra/kernel-tf-gpu-py:3.2.3"
+            }
+            },
+            "debugger": true
+        },
+        "env": {
+            "KERNEL_GPU_MEMORY": "7800",
+            "KERNEL_GPU_TYPE": "RTX-3090-Ti",
+            "TF_FORCE_GPU_ALLOW_GROWTH": "true",
+            "IPYTHONDIR": "/opt/custom_kernels/ipython_config"
+        },
+        "argv": [
+            "python",
+            "/usr/local/share/jupyter/kernels/tf_gpu_sharing_8GB/launch_kubernetes.py",
+            "--RemoteProcessProxy.kernel-id",
+            "{kernel_id}",
+            "--RemoteProcessProxy.port-range",
+            "{port_range}",
+            "--RemoteProcessProxy.response-address",
+            "{response_address}",
+            "--RemoteProcessProxy.public-key",
+            "{public_key}"
+        ]
+    }
