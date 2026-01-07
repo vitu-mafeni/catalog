@@ -1,0 +1,159 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: enterprise-gateway-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: enterprise-gateway
+    repo: catalog-workloads-mlplatform
+    # workspaceName: main
+  downstream:
+    package: enterprise-gateway
+    repo: mgmt
+  # injectors:
+  # - kind: WorkloadCluster
+  #   name: example
+  # pipeline:
+  #   mutators:
+  #   - image: gcr.io/kpt-fn/set-annotations:v0.1.4
+  #     configMap:
+  #       nephio.org/cluster-name: example
+
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: gpu-operator-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: gpu-operator
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: gpu-operator
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: harbor-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: harbor
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: harbor
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: k8s-dra-driver-gpu-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: k8s-dra-driver-gpu
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: k8s-dra-driver-gpu
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: kai-scheduler-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: kai-scheduler
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: kai-scheduler
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: keycloak-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: keycloak
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: keycloak
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: kubeflow-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: kubeflow
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: kubeflow
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: kueue-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: kueue
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: kueue
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: kyverno-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: kyverno
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: kyverno
+    repo: mgmt
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: prometheus-stack-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: prometheus-stack
+    repo: workloads-ml-platform
+    revision: v1.0.0
+  downstream:
+    package: prometheus-stack
+    repo: mgmt
+

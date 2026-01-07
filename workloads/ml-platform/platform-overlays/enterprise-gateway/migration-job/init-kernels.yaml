@@ -1,0 +1,139 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: install-kernels-secured
+  namespace: enterprise-gateway
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      containers:
+      - name: installer
+        image: elyra/enterprise-gateway:3.2.3
+        securityContext:
+          runAsUser: 0 # Run as Root to fix permissions
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "--- STARTING SECURE KERNEL INSTALLATION ---"
+            
+            # Locations
+            SOURCE_DEFAULTS="/usr/local/share/jupyter/kernels"
+            TARGET_DIR="/mnt/pvc"
+            IPYTHON_DIR="$TARGET_DIR/ipython_config/profile_default/startup"
+            
+            # 1. CLEANUP (Wipe PVC)
+            echo "[1/4] Wiping old data..."
+            rm -rf $TARGET_DIR/*
+            mkdir -p $IPYTHON_DIR
+
+            # 2. WRITE SECURITY ENFORCER SCRIPT (FROM CONFIGMAP)
+            echo "[2/4] Installing Security Script from ConfigMap..."
+            
+            # We copy instead of symlinking to ensure we own the file and can modify permissions
+            if [ -f "/mnt/gpu-enforcer/00-enforce-limits.py" ]; then
+                cp /mnt/gpu-enforcer/00-enforce-limits.py $IPYTHON_DIR/00-enforce-limits.py
+                echo " - Success: Security script installed."
+            else
+                echo " - ERROR: ConfigMap mount not found at /mnt/gpu-enforcer/00-enforce-limits.py"
+                exit 1
+            fi
+
+            # 3. COPY DEFAULT KERNELS (Restore specific defaults)
+            echo "[3/4] Copying specific defaults..."
+            KERNELS_TO_COPY="r_kubernetes python_kubernetes python_tf_kubernetes python_tf_gpu_kubernetes scala_kubernetes spark_r_kubernetes spark_python_kubernetes spark_scala_kubernetes spark_python_operator"
+            
+            for KERNEL in $KERNELS_TO_COPY; do
+              if [ -d "$SOURCE_DEFAULTS/$KERNEL" ]; then
+                cp -r "$SOURCE_DEFAULTS/$KERNEL" "$TARGET_DIR/"
+                echo " - Restored $KERNEL"
+              fi
+            done
+
+            # 4. INSTALL CUSTOM KERNELS
+            echo "[4/4] Installing Custom GPU Kernels..."
+            install_custom_kernel() {
+              SRC=$1; NAME=$2; DEST="$TARGET_DIR/$NAME"
+              mkdir -p $DEST
+              cp $SRC/kernel.json $DEST/
+              cp /mnt/kernel-pod-template/kernel-pod.yaml.j2 $DEST/
+              cp /mnt/launch-k8s-kernel-script/launch_kubernetes.py $DEST/
+              chmod +x $DEST/launch_kubernetes.py
+              
+              echo " - Installed $NAME"
+            }
+
+            install_custom_kernel "/mnt/configmap-pytorch-4gb" "pytorch_gpu_sharing_4GB"
+            install_custom_kernel "/mnt/configmap-tf-4gb" "tf_gpu_sharing_4GB"
+            install_custom_kernel "/mnt/configmap-pytorch-8gb" "pytorch_gpu_sharing_8GB"
+            install_custom_kernel "/mnt/configmap-tf-8gb" "tf_gpu_sharing_8GB"
+
+            # 4.1 Install Pytorch GPU all
+            mkdir -p $TARGET_DIR/pytorch_gpu_sharing_all
+            cp /mnt/configmap-pytorch-all/kernel.json $TARGET_DIR/pytorch_gpu_sharing_all/
+            cp /mnt/configmap-pytorch-all/kernel-pod.yaml.j2 $TARGET_DIR/pytorch_gpu_sharing_all/
+            cp /mnt/configmap-pytorch-all/launch_kubernetes.py $TARGET_DIR/pytorch_gpu_sharing_all/
+            chmod +x $TARGET_DIR/pytorch_gpu_sharing_all/launch_kubernetes.py
+            echo " - Installed Pytorch GPU all"
+
+            # 5. PERMISSIONS FIX (Root -> Jovyan)
+            # This is critical so the Kernel Pod (running as jovyan) can read the file
+            chown -R 1000:100 $TARGET_DIR
+            chmod -R 755 $TARGET_DIR
+            
+            echo "--- DONE ---"
+
+        volumeMounts:
+        - name: kernels-pvc
+          mountPath: /mnt/pvc
+        - name: gpu-enforcer-vol
+          mountPath: /mnt/gpu-enforcer
+          readOnly: true
+        - name: kernel-pod-template-vol
+          mountPath: /mnt/kernel-pod-template
+          readOnly: true
+        - name: launch-k8s-kernel-script-vol
+          mountPath: /mnt/launch-k8s-kernel-script
+          readOnly: true
+        - name: cm-pytorch-4gb
+          mountPath: /mnt/configmap-pytorch-4gb
+        - name: cm-tf-4gb
+          mountPath: /mnt/configmap-tf-4gb
+        - name: cm-pytorch-8gb
+          mountPath: /mnt/configmap-pytorch-8gb
+        - name: cm-tf-8gb
+          mountPath: /mnt/configmap-tf-8gb
+        - name: cm-pytorch-all
+          mountPath: /mnt/configmap-pytorch-all
+      volumes:
+      - name: kernels-pvc
+        persistentVolumeClaim:
+          claimName: kernel-specs-pvc
+      - name: gpu-enforcer-vol
+        configMap:
+          name: gpu-enforcer-script
+          defaultMode: 0777
+      - name: kernel-pod-template-vol
+        configMap:
+          name: kernel-pod-template
+          defaultMode: 0777
+      - name: launch-k8s-kernel-script-vol
+        configMap:
+          name: launch-k8s-kernel-script
+          defaultMode: 0777
+      - name: cm-pytorch-4gb
+        configMap:
+          name: kernel-spec-pytorch-gpu-4gb
+      - name: cm-tf-4gb
+        configMap:
+          name: kernel-spec-tf-gpu-4gb
+      - name: cm-pytorch-8gb
+        configMap:
+          name: kernel-spec-pytorch-gpu-8gb
+      - name: cm-tf-8gb
+        configMap:
+          name: kernel-spec-tf-gpu-8gb
+      - name: cm-pytorch-all
+        configMap:
+          name: kernel-spec-pytorch-gpu-all
+      restartPolicy: OnFailure
