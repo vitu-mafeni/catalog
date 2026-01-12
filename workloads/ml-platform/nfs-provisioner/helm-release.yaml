@@ -1,0 +1,42 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nfs-subdir-external-provisioner
+  namespace: storage
+spec:
+  interval: 1m
+  releaseName: nfs-subdir-external-provisioner
+  chart:
+    spec:
+      chart: nfs-subdir-external-provisioner
+      sourceRef:
+        kind: HelmRepository
+        name: nfs-subdir-external-provisioner
+        namespace: storage
+  values:
+    nfs:
+      server: x.x.x.x
+      path: /exported/path
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nfs-csi
+  namespace: storage
+spec:
+  interval: 1m
+  releaseName: nfs-csi
+  chart:
+    spec:
+      chart: nfs-subdir-external-provisioner
+      sourceRef:
+        kind: HelmRepository
+        name: nfs-subdir-external-provisioner
+        namespace: storage
+  values:
+    nfs:
+      server: 192.x.x.x
+      path: /srv/nfs/k8s
+    storageClass:
+      name: nfs-csi
+      defaultClass: false

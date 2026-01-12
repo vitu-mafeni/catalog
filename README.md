@@ -63,3 +63,22 @@ kubectl get pods -n kube-system | grep istio-cni
 ```
 
 Logs should no longer show errors.
+
+
+## CREATE THE NFS SYSTEM
+
+Use this command for default storage
+```bash
+helm repo add nfs-subdir-external-provisioner https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
+helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+    --set nfs.server=x.x.x.x \
+    --set nfs.path=/exported/path
+```
+Then additional one with this:
+```bash
+helm install nfs-csi nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+  --set nfs.server=192.168.0.7 \
+  --set nfs.path=/srv/nfs/k8s \
+  --set storageClass.name=nfs-csi \
+  --set storageClass.defaultClass=false
+```
