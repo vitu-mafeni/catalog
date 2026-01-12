@@ -31,7 +31,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: gpu-operator
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: gpu-operator
@@ -46,7 +46,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: harbor
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: harbor
@@ -61,7 +61,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: k8s-dra-driver-gpu
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: k8s-dra-driver-gpu
@@ -76,7 +76,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: kai-scheduler
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: kai-scheduler
@@ -91,7 +91,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: keycloak
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: keycloak
@@ -106,7 +106,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: kubeflow
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: kubeflow
@@ -121,7 +121,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: kueue
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: kueue
@@ -136,7 +136,7 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: kyverno
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: kyverno
@@ -151,9 +151,24 @@ spec:
     approval.nephio.org/policy: initial
   upstream:
     package: prometheus-stack
-    repo: workloads-ml-platform
+    repo: catalog-workloads-mlplatform
     revision: v1.0.0
   downstream:
     package: prometheus-stack
     repo: mgmt
 
+---
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: nfs-provisioner-variant
+spec:
+  annotations:
+    approval.nephio.org/policy: initial
+  upstream:
+    package: nfs-provisioner
+    repo: catalog-workloads-mlplatform
+    revision: v1.0.0
+  downstream:
+    package: nfs-provisioner
+    repo: mgmt
