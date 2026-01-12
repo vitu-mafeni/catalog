@@ -163,8 +163,8 @@ kind: PackageVariant
 metadata:
   name: nfs-provisioner-variant
 spec:
-  annotations:
-    approval.nephio.org/policy: initial
+  # annotations:
+  #   approval.nephio.org/policy: initial
   upstream:
     package: nfs-provisioner
     repo: catalog-workloads-mlplatform
