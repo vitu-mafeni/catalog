@@ -85,12 +85,14 @@ helm install nfs-csi nfs-subdir-external-provisioner/nfs-subdir-external-provisi
 
 ### Install on the host server
 ```bash 
-sudo apt install nfs-kernel-server
+sudo apt install nfs-kernel-server -y
 sudo systemctl start nfs-kernel-server.service
 ```
 ### Configuration
 ```bash
 sudo mkdir /srv/nfs/k8s -p
+sudo chmod 777 /srv/nfs/k8s
+chown -R nobody:nogroup /srv/nfs/k8s
 ```
 You can configure the directories to be exported by adding them to the __/etc/exports file__. For example:
 ```text
@@ -101,5 +103,6 @@ sudo exportfs -a
 ```
 ### Install on all k8s workers
 ```bash
-sudo apt install nfs-common
+sudo apt install nfs-common -y
+
 ```
