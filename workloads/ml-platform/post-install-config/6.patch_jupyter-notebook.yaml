@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter-web-app-deployment
+  namespace: kubeflow
+spec:
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: jupyter-web-app
+          env:
+            - name: APP_SECURE_COOKIES
+              value: "false"
