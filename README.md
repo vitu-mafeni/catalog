@@ -82,3 +82,24 @@ helm install nfs-csi nfs-subdir-external-provisioner/nfs-subdir-external-provisi
   --set storageClass.name=nfs-csi \
   --set storageClass.defaultClass=false
 ```
+
+### Install on the host server
+```bash 
+sudo apt install nfs-kernel-server
+sudo systemctl start nfs-kernel-server.service
+```
+### Configuration
+```bash
+sudo mkdir /srv/nfs/k8s -p
+```
+You can configure the directories to be exported by adding them to the __/etc/exports file__. For example:
+```text
+/srv/nfs/k8s *(rw,async,no_subtree_check,no_root_squash)
+```
+```bash
+sudo exportfs -a
+```
+### Install on all k8s workers
+```bash
+sudo apt install nfs-common
+```
