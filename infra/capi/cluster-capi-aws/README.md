@@ -20,14 +20,15 @@ spec:
       - |
         # Disable containerd
         systemctl disable containerd --now || true
-
-        # Install CRI-O 1.32
+        
+        # Install CRI-O 1.34
         mkdir -p /etc/apt/keyrings
 
-        curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.32/deb/Release.key \
-          | gpg --dearmor -o /etc/apt/keyrings/crio.gpg
+        curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/deb/Release.key |
+        gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
 
-        echo "deb [signed-by=/etc/apt/keyrings/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.32/deb/ /"> /etc/apt/sources.list.d/crio.list
+        echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/deb/ /" |
+        tee /etc/apt/sources.list.d/cri-o.list
 
         apt-get update
         apt-get install -y cri-o
@@ -68,13 +69,14 @@ spec:
       # Disable containerd
       systemctl disable containerd --now || true
 
-      # Install CRI-O 1.32 (Ubuntu 22.04)
+      # Install CRI-O 1.34
       mkdir -p /etc/apt/keyrings
 
-      curl -fsSL https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.32/deb/Release.key \
-        | gpg --dearmor -o /etc/apt/keyrings/crio.gpg
+      curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/deb/Release.key |
+      gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
 
-      echo "deb [signed-by=/etc/apt/keyrings/crio.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/v1.32/deb/ /"> /etc/apt/sources.list.d/crio.list
+      echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/deb/ /" |
+      tee /etc/apt/sources.list.d/cri-o.list
 
       apt-get update
       apt-get install -y cri-o
