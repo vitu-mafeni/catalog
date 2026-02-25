@@ -13,7 +13,7 @@ Details: https://kpt.dev/reference/cli/pkg/get/
 `kpt pkg tree enterprise-gateway`
 Details: https://kpt.dev/reference/cli/pkg/tree/
 
-### Apply the package
+### Apply the packages
 ```
 kpt live init enterprise-gateway
 kpt live apply enterprise-gateway --reconcile-timeout=2m --output=table
