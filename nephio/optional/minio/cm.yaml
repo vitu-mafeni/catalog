@@ -63,16 +63,16 @@ data:
       size: 20Gi
 
     service:
-      type: LoadBalancer
+      type: NodePort
       port: "9000"
-      # nodePort: 32000
+      nodePort: 32000
       # externalTrafficPolicy: Cluster
       # loadBalancerSourceRanges: []
 
     consoleService:
-      type: LoadBalancer
+      type: NodePort
       port: "9001"
-      # nodePort: 32001
+      nodePort: 32001
       # externalTrafficPolicy: Cluster
       # loadBalancerSourceRanges: []
 
