@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-platform-system
+  labels:
+    app: ml-platform-system
+    app.kubernetes.io/name: ml-platform-system
+    app.kubernetes.io/part-of: kubeflow
+    istio-injection: disabled
+

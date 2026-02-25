@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: ml-platform-system
+  namespace: ml-platform-system
+spec:
+  interval: 5m
+  url: https://github.com/lehuannhatrang/ml-platform-manifests.git
+  ref:
+    branch: main

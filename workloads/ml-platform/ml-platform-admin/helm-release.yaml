@@ -1,14 +1,14 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: enterprise-gateway
-  namespace: enterprise-gateway
+  name: ml-platform-system
+  namespace: ml-platform-system
 spec:
   interval: 10m
   targetNamespace: default
   sourceRef:
     kind: GitRepository
-    name: enterprise-gateway
-  path: "./applications/enterprise-gateway"
+    name: ml-platform-system
+  path: "./applications/ml-platform-admin/base"
   # prune: true
   timeout: 1m
