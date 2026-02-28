@@ -5,10 +5,10 @@ metadata:
   namespace: ml-platform-system
 spec:
   interval: 10m
-  targetNamespace: default
+  targetNamespace: ml-platform-system
   sourceRef:
     kind: GitRepository
     name: ml-platform-system
-  path: "./applications/ml-platform-admin/base"
-  # prune: true
+  path: "./artifacts/ml-platform-admin"
+  prune: true
   timeout: 1m

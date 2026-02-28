@@ -28,7 +28,7 @@ data:
       securityContext: {}
       imagePullSecrets: []
       leaderElection: false
-      gpuSharing: false
+      gpuSharing: true
       clusterAutoscaling: false
       nodeSelector: {}
       affinity: {}
@@ -68,6 +68,9 @@ data:
       affinity: {}
     binder:
       name: binder
+      cdiEnabled: true
+      resourceReservation: 
+        runtimeClassName: nvidia-cdi
       image:
         name: binder
         pullPolicy: IfNotPresent
@@ -118,7 +121,7 @@ data:
         metricsPort: 8080
         probePort: 8081
       cdi: false
-      gpuPodRuntimeClassName: nvidia
+      gpuPodRuntimeClassName: nvidia-cdi
       affinity: {}
 
     nodescaleadjuster:

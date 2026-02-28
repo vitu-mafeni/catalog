@@ -1,0 +1,38 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: userid-header
+  namespace: istio-system
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+            subFilter:
+              name: envoy.filters.http.router
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.lua
+        typed_config:
+          '@type': type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inlineCode: |
+            function envoy_on_request(request_handle)
+              local user_email = request_handle:headers():get("x-auth-request-email")
+              if user_email ~= nil then
+                -- Handle comma-separated list of emails (take the first one)
+                local i = string.find(user_email, ",")
+                if i ~= nil then
+                  user_email = string.sub(user_email, 1, i-1)
+                end
+                -- Use replace to execute clean overwrite
+                request_handle:headers():replace("kubeflow-userid", user_email)
+              end
+            end
+  workloadSelector:
+    labels:
+      istio: ingressgateway
