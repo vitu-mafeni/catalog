@@ -7,6 +7,6 @@ spec:
   interval: 10m
   url: oci://ghcr.io/nvidia/kai-scheduler/kai-scheduler
   ref:
-    tag: v0.12.3
+    tag: v0.12.14
   # secretRef:
   #   name: ghcr-creds   # only required if you hit rate limits

@@ -5,6 +5,6 @@ metadata:
   namespace: ml-platform-system
 spec:
   interval: 5m
-  url: https://github.com/lehuannhatrang/ml-platform-manifests.git
+  url: https://github.com/lehuannhatrang/ml-platform-admin.git
   ref:
     branch: main

@@ -5,7 +5,8 @@ metadata:
   namespace: enterprise-gateway
 spec:
   interval: 10m
-  targetNamespace: default
+  prune: true
+  targetNamespace: enterprise-gateway
   sourceRef:
     kind: GitRepository
     name: enterprise-gateway

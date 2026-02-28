@@ -10,5 +10,4 @@ spec:
   - name: dex
     port: 5556
     targetPort: 5556
-    nodePort: 32269
-  type: NodePort
+  type: ClusterIP

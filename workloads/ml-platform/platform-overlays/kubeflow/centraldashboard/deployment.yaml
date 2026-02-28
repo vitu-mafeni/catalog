@@ -51,7 +51,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: COLLECT_METRICS
               value: CD_COLLECT_METRICS
-          image: loihoangthanh1411/centraldashboard:2.3
+          image: loihoangthanh1411/centraldashboard:2.4
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
