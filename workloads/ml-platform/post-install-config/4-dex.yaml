@@ -5,7 +5,7 @@ metadata:
   namespace: auth
 spec:
   selector:
-    app.kubernetes.io/instance: kubeflow-dex
+    app: dex
   ports:
   - name: dex
     port: 5556
