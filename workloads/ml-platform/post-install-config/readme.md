@@ -49,6 +49,8 @@ kubectl get secret example-kc-initial-admin -o jsonpath='{.data.username}' | bas
 kubectl get secret example-kc-initial-admin -o jsonpath='{.data.password}' | base64 --decode
 ```
 
+
+
 #### Guides used
 1. [wooyoung85- Kubeflow Dex and Keycloak Integration Guide](https://wooyoung85.tistory.com/99)
 2. [hklog - keycloak-kubeflow-dex](https://velog.io/@hklog/keycloak-kubeflow-dex)
