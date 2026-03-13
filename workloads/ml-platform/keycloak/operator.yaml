@@ -345,10 +345,9 @@ spec:
       port: 80
       protocol: TCP
       targetPort: 8080
-      nodePort: 32008
   selector:
     app.kubernetes.io/name: keycloak-operator
-  type: NodePort
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
