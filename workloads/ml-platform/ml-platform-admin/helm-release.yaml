@@ -10,5 +10,5 @@ spec:
     kind: GitRepository
     name: ml-platform-system
   path: "./artifacts/ml-platform-admin"
-  prune: true
+#  prune: true
   timeout: 1m
