@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kernel-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kernel-api-sa
+  namespace: kernel-api
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kernel-api-role
+rules:
+- apiGroups: [""]
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kernel-api-binding
+subjects:
+- kind: ServiceAccount
+  name: kernel-api-sa
+  namespace: kernel-api
+roleRef:
+  kind: ClusterRole
+  name: kernel-api-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kernel-api
+  namespace: kernel-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kernel-api
+  template:
+    metadata:
+      labels:
+        app: kernel-api
+    spec:
+      serviceAccountName: kernel-api-sa
+      containers:
+      - name: kernel-api
+        image: vitu1/kernel-pod-status-api:v2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+        env:
+        - name: EG_URL
+          value: "http://192.168.3.234:32556" # change this to the actual URL of your EG instance, node port 32556 is used by the EG instance to expose its API
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kernel-api-service
+  namespace: kernel-api
+spec:
+  selector:
+    app: kernel-api
+  type: NodePort
+  ports:
+  - port: 9000
+    targetPort: 9000
+    nodePort: 30901 #do not change this port, it is used by the client to access the API
