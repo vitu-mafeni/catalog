@@ -4,6 +4,9 @@ metadata:
   name: example-kc
 spec:
   instances: 1
+  bootstrapAdmin:
+    user:
+      secret: keycloak-admin-secret # ✅ correct per CRD
   db:
     vendor: postgres
     host: postgres-db
