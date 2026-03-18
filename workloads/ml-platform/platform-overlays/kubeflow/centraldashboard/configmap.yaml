@@ -83,7 +83,7 @@ data:
   settings: >-
     {
       "DASHBOARD_FORCE_IFRAME": true,
-      "MONITORING_URL": "http://{{HOST-IP}}:{{GRAFANA-PORT}}/d/adcfdqx/kai-scheduler-monitoring-user-view?theme=light&kiosk&_dash.hideTimePicker=true&refresh=5s",
+      "MONITORING_URL": "http://{{HOST-IP}}:30099/d/adcfdqx/kai-scheduler-monitoring-user-view?theme=light&kiosk&_dash.hideTimePicker=true&refresh=5s",
       "MONITORING_CLUSTER": "cluster-gpu-1",
       "MONITORING_TITLE": "Dashboard",
       "MONITORING_DESCRIPTION": "View your current resource usage."
