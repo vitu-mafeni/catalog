@@ -51,7 +51,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: COLLECT_METRICS
               value: CD_COLLECT_METRICS
-          image: docker.io/loihoangthanh1411/centraldashboard:2.4.1
+          image: docker.io/loihoangthanh1411/centraldashboard:2.4.2
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
