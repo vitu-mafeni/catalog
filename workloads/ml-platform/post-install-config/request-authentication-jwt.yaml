@@ -1,0 +1,23 @@
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: >-
+      remotecluster-new:security.istio.io/RequestAuthentication:istio-system/dex-jwt
+  name: dex-jwt
+  namespace: istio-system
+spec:
+  jwtRules:
+    - forwardOriginalToken: true
+      fromHeaders:
+        - name: Authorization
+          prefix: 'Bearer '
+      issuer: http://{{INGRESS_HOST}}:32269/dex
+      outputClaimToHeaders:
+        - claim: email
+          header: kubeflow-userid
+        - claim: groups
+          header: kubeflow-groups
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
