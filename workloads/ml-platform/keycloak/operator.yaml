@@ -384,12 +384,12 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: RELATED_IMAGE_KEYCLOAK
-              value: quay.io/keycloak/keycloak:26.4.7
+              value: docker.io/loihoangthanh1411/keycloak:cnlab-v26.4.7
             - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKREALMIMPORTCONTROLLER_NAMESPACES
               value: JOSDK_WATCH_CURRENT
             - name: QUARKUS_OPERATOR_SDK_CONTROLLERS_KEYCLOAKCONTROLLER_NAMESPACES
               value: JOSDK_WATCH_CURRENT
-          image: docker.io/loihoangthanh1411/keycloak:cnlab-v26.4.7
+          image: quay.io/keycloak/keycloak-operator:26.4.7
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
