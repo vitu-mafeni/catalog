@@ -35,11 +35,17 @@ spec:
             - --etcd-port=2379
             - --use-keycloak=true
             - --keycloak-realm=ml-platform
-            - --keycloak-url=http://192.168.40.245:32008
+            - --keycloak-url=http://{{KEYCLOAK-HOST}}:32008
           name: ml-platform-admin-api
           image: docker.io/lehuannhatrang/ml-platform-admin-api:v0.15
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
           env:
+            - name: FRONTEND_URL
+              value: http://{{FRONTEND-HOST}}:32000
             - name: ENV_NAME
               value: prod
             - name: GIN_MODE
@@ -51,7 +57,7 @@ spec:
             - name: KARMADA_DASHBOARD_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ml-platform-admin-inital-password
+                  name: ml-platform-admin-initial-password
                   key: password
                   optional: true
             # JWT Secret for token signing
