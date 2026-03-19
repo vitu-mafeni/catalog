@@ -89,6 +89,7 @@ spec:
       port: 8000
       protocol: TCP
       targetPort: 8000
+      nodePort: 32000
   selector:
     app: ml-platform-admin-web
-  type: ClusterIP
+  type: NodePort
