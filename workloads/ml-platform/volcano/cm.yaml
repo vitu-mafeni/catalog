@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: volcano-values
+  namespace: volcano-system
+data:
+  values.yaml: |-
+    custom:
+      # Enable Kubernetes Dynamic Resource Allocation (needed for NVIDIA DRA)
+      scheduler_feature_gates: "DynamicResourceAllocation=true"
+
+      # Control component replicas
+      controller_replicas: 1
+      admission_replicas: 1
+      scheduler_replicas: 1
+
+      # Volcano scheduler configuration
+      scheduler_config_override: |
+        actions: "enqueue, allocate, backfill"
+        tiers:
+        - plugins:
+          - name: priority
+            # Orders jobs/pods by priorityClass
+            # Higher priority workloads are scheduled first
+
+          - name: gang
+            # Ensures all pods in a group (e.g., distributed training job)
+            # are scheduled together or not at all
+            # Critical for MPI, PyTorch Distributed, Ray, etc.
+
+          - name: conformance
+            # Basic validation plugin
+            # Ensures jobs meet Volcano scheduling requirements
+            # (e.g., valid PodGroup, resource definitions)
+
+          - name: drf
+            # Dominant Resource Fairness
+            # Balances usage across CPU, memory, GPU
+            # Prevents one user/job from monopolizing GPUs
+
+          - name: predicates
+            # Equivalent to kube-scheduler filtering stage
+            # Checks node suitability (resources, taints, affinity, etc.)
+
+          - name: proportion
+            # Allocates resources proportionally across queues
+            # Useful for multi-tenant clusters (labs/users sharing GPUs)
+
+          - name: nodeorder
+            # Scores nodes after filtering
+            # Determines which node is "better" for placement
+
+          - name: binpack
+            # Packs workloads onto fewer nodes
+            # Reduces GPU fragmentation and improves utilization
+            arguments:
+              binpack.weight: 10   # Higher = stronger preference for packing
+              binpack.cpu: 1       # CPU weight in scoring
+              binpack.memory: 1    # Memory weight in scoring

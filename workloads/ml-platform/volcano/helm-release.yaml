@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: volcano
+  namespace: volcano-system
+spec:
+  interval: 1m
+  releaseName: volcano
+  chart:
+    spec:
+      chart: volcano
+      sourceRef:
+        kind: HelmRepository
+        name: volcano
+        namespace: volcano-system
+  valuesFrom:
+    - kind: ConfigMap
+      name: volcano-values
+      valuesKey: values.yaml
