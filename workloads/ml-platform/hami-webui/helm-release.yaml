@@ -15,9 +15,22 @@ spec:
         namespace: kube-system
 
   values:
+    service:
+      type: NodePort
+      port: 3000
+      nodePort: 30181   # optional
+
     externalPrometheus:
       enabled: true
       address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+
+    env:
+      frontend:
+        - name: TZ
+          value: "Asia/Seoul"
+      backend:
+        - name: TZ
+          value: "Asia/Seoul"
 
   install:
     remediation:
