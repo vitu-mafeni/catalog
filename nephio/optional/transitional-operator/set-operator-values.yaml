@@ -1,0 +1,61 @@
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata: # kpt-merge: /set-operator-values
+  name: set-operator-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    internal.kpt.dev/upstream-identifier: fn.kpt.dev|StarlarkRun|default|set-operator-values
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+source: |-
+  load("krmfn.star", "krmfn")
+  def set_operator_values(resources):
+    # Git defaults
+    git_secret_name      = "git-user-secret"
+    git_secret_namespace = "default"
+    git_server_url       = "http://54.255.162.223:31416"
+
+    # MinIO defaults
+    minio_access_key = "nephio1234"
+    minio_bucket     = "checkpoints"
+    minio_endpoint   = "54.255.162.223:32001"
+    minio_secret_key = "secret1234"
+
+    # Registry defaults
+    reg_password = "changeme"
+    reg_registry = "docker.io"
+    reg_username = "vitu1"
+
+    # Override defaults from operator-config ConfigMap if present
+    for r in resources:
+      if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "operator-config"):
+        d = r["data"]
+        if "git-secret-name"      in d: git_secret_name      = d["git-secret-name"]
+        if "git-secret-namespace" in d: git_secret_namespace = d["git-secret-namespace"]
+        if "git-server-url"       in d: git_server_url       = d["git-server-url"]
+        if "minio-access-key"     in d: minio_access_key     = d["minio-access-key"]
+        if "minio-bucket"         in d: minio_bucket         = d["minio-bucket"]
+        if "minio-endpoint"       in d: minio_endpoint       = d["minio-endpoint"]
+        if "minio-secret-key"     in d: minio_secret_key     = d["minio-secret-key"]
+        if "reg-password"         in d: reg_password         = d["reg-password"]
+        if "reg-registry"         in d: reg_registry         = d["reg-registry"]
+        if "reg-username"         in d: reg_username         = d["reg-username"]
+
+    # Apply values to the target secrets
+    for r in resources:
+      if krmfn.match_gvk(r, "v1", "Secret") and krmfn.match_name(r, "git-secret"):
+        r["stringData"]["GIT_SECRET_NAME"]      = git_secret_name
+        r["stringData"]["GIT_SECRET_NAMESPACE"] = git_secret_namespace
+        r["stringData"]["GIT_SERVER_URL"]       = git_server_url
+
+      elif krmfn.match_gvk(r, "v1", "Secret") and krmfn.match_name(r, "minio-secret"):
+        r["stringData"]["MINIO_ACCESS_KEY"] = minio_access_key
+        r["stringData"]["MINIO_BUCKET"]     = minio_bucket
+        r["stringData"]["MINIO_ENDPOINT"]   = minio_endpoint
+        r["stringData"]["MINIO_SECRET_KEY"] = minio_secret_key
+
+      elif krmfn.match_gvk(r, "v1", "Secret") and krmfn.match_name(r, "reg-credentials"):
+        r["stringData"]["password"] = reg_password
+        r["stringData"]["registry"] = reg_registry
+        r["stringData"]["username"] = reg_username
+
+  set_operator_values(ctx.resource_list["items"])
