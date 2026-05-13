@@ -7,13 +7,15 @@ metadata:
     app: nephio-webui
     app.kubernetes.io/name: nephio-webui
     app.kubernetes.io/instance: nephio-webui
-  annotations:
-    metallb.universe.tf/loadBalancerIPs: 172.18.0.201
+  # annotations:
+  #   metallb.universe.tf/loadBalancerIPs: 172.18.0.201
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: nephio-webui
   ports:
     - name: http
       port: 7007
       targetPort: http
+      protocol: TCP
+      nodePort: 32101
