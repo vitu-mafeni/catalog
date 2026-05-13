@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: checkpoint-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: checkpoint-agent
+  namespace: checkpoint-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: checkpoint-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: checkpoint-agent
+subjects:
+  - kind: ServiceAccount
+    name: checkpoint-agent
+    namespace: checkpoint-agent
+roleRef:
+  kind: ClusterRole
+  name: checkpoint-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: checkpoint-agent-credentials
+  namespace: checkpoint-agent
+type: Opaque
+stringData:
+  MINIO_ACCESS_KEY: nephio1234
+  MINIO_SECRET_KEY: secret1234
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: checkpoint-agent
+  namespace: checkpoint-agent
+spec:
+  selector:
+    matchLabels:
+      app: checkpoint-agent
+  template:
+    metadata:
+      labels:
+        app: checkpoint-agent
+    spec:
+      serviceAccountName: checkpoint-agent
+      # Remove nodeSelector to run on all nodes, or set to match your worker node label
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+      volumes:
+        - name: kubelet-checkpoints
+          hostPath:
+            path: /var/lib/kubelet/checkpoints
+            type: DirectoryOrCreate
+      containers:
+        - name: checkpoint-agent
+          image: vitu1/checkpoint-agent:v1.0.0
+          imagePullPolicy: Always
+          env:
+            - name: CHECKPOINT_DIR
+              value: /var/lib/kubelet/checkpoints
+            - name: MINIO_ENDPOINT
+              value: "54.255.162.223:32001"
+            - name: MINIO_BUCKET
+              value: checkpoints
+            - name: PULL_INTERVAL
+              value: "5s"
+            - name: CONTROLLER_URL
+              value: "http://54.255.162.223:8090/heartbeat"
+            # Remove or leave empty if not on AWS 
+            - name: AWS_REGION
+              value: "ap-southeast-1"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: checkpoint-agent-credentials
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: checkpoint-agent-credentials
+                  key: MINIO_SECRET_KEY
+          volumeMounts:
+            - name: kubelet-checkpoints
+              mountPath: /var/lib/kubelet/checkpoints
+              readOnly: false
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
