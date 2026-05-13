@@ -36,6 +36,33 @@ spec:
         # Re-execute systemd daemon and start containerd
         systemctl daemon-reexec
         systemctl start containerd
+      - |
+        # Install CRIU
+        curl -fsSL https://download.opensuse.org/repositories/devel:/tools:/criu/xUbuntu_22.04/Release.key | gpg --dearmor -o /etc/apt/trusted.gpg.d/criu.gpg
+        echo "deb http://download.opensuse.org/repositories/devel:/tools:/criu/xUbuntu_22.04/ ./" | tee /etc/apt/sources.list.d/criu.list
+        apt-get update
+        apt-get install criu -y
+
+        # Upgrade runc
+        cd /tmp
+        curl -L -o runc.new https://github.com/opencontainers/runc/releases/download/v1.3.1/runc.amd64
+        mv /tmp/runc.new /usr/local/sbin/runc
+        chmod +x /usr/local/sbin/runc
+
+        # Create CRIU config
+        mkdir -p /etc/criu
+        printf '%s\n' \
+          'file-locks' \
+          'tcp-close' \
+          'skip-in-flight' \
+          'tcp-established' \
+          'log-file /tmp/criu.log' \
+          '' \
+          'enable-external-masters' \
+          'external mnt[]' \
+          'skip-mnt /proc/latency_stats' \
+          > /etc/criu/runc.conf
+        systemctl restart kubelet containerd          
       files:
         - contentFrom:
             secret:
