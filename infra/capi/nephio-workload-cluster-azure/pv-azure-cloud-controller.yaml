@@ -1,0 +1,22 @@
+apiVersion: config.porch.kpt.dev/v1alpha1
+kind: PackageVariant
+metadata:
+  name: example-azure-cloud-controller
+spec:
+  # annotations:
+  #   approval.nephio.org/policy: initial
+  upstream:
+    package: azure-cloud-controller
+    repo: catalog-nephio-optional
+    revision: v2.0.0
+  downstream:
+    package: example-azure-cloud-controller
+    repo: mgmt-staging
+  injectors:
+  - kind: WorkloadCluster
+    name: example
+  pipeline:
+    mutators:
+    - image: ghcr.io/kptdev/krm-functions-catalog/set-annotations:v0.1.4
+      configMap:
+        nephio.org/cluster-name: example
