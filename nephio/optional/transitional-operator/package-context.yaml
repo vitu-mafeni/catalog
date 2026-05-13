@@ -5,4 +5,5 @@ metadata:
   annotations:
     config.kubernetes.io/local-config: "true"
 data:
-  name: example
+  name: example-transition-operator
+  clusterName: example-cluster-name

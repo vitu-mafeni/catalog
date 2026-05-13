@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: operator-config
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  # Git configuration
+  git-secret-name: "git-user-secret"
+  git-secret-namespace: "default"
+  git-server-url: "http://54.255.162.223:31416"
+
+  # MinIO configuration
+  minio-access-key: "nephio1234"
+  minio-bucket: "checkpoints"
+  minio-endpoint: "54.255.162.223:32001"
+  minio-secret-key: "secret1234"
+
+  # Container registry configuration
+  reg-registry: "docker.io"
+  reg-username: "vitu1"
+  reg-password: "changeme"
