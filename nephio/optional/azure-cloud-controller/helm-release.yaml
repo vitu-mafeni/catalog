@@ -1,0 +1,25 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloud-provider-azure
+  namespace: kube-system
+
+spec:
+  interval: 30m
+
+  chart:
+    spec:
+      chart: cloud-provider-azure
+      version: "*"
+
+      sourceRef:
+        kind: HelmRepository
+        name: cloud-provider-azure
+        namespace: flux-system
+
+  values:
+    infra:
+      clusterName: cluster2-azure
+
+    cloudControllerManager:
+      clusterCIDR: "10.244.0.0/16"

@@ -2624,35 +2624,45 @@ subjects:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: transition-operator-git-secret
+  name: git-user-secret
+  namespace: default
+type: Opaque
+stringData:
+  username: nephio
+  password: secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-secret
   namespace: transition-operator-system
 stringData:
   GIT_SECRET_NAME: git-user-secret
   GIT_SECRET_NAMESPACE: default
-  GIT_SERVER_URL: http://47.129.115.173:31413
+  GIT_SERVER_URL: http://54.255.162.223:31416 # change to your git server url
 type: Opaque
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: transition-operator-minio-secret
+  name: minio-secret
   namespace: transition-operator-system
 stringData:
-  MINIO_ACCESS_KEY: nephio1234
-  MINIO_BUCKET: checkpoints
-  MINIO_ENDPOINT: 47.129.115.173:31092
-  MINIO_SECRET_KEY: secret1234
+  MINIO_ACCESS_KEY: nephio1234 # change to your minio access key
+  MINIO_BUCKET: checkpoints  # change to your minio bucket name
+  MINIO_ENDPOINT: 54.255.162.223:32001 # change to your minio endpoint
+  MINIO_SECRET_KEY: secret1234 # change to your minio secret key
 type: Opaque
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: transition-operator-reg-credentials
+  name: reg-credentials
   namespace: transition-operator-system
 stringData:
-  password: your-token
+  password: changeme # change to your dockerhub password or access token
   registry: docker.io
-  username: vitu1
+  username: vitu1 # change to your dockerhub username
 type: Opaque
 ---
 apiVersion: v1
@@ -2665,11 +2675,17 @@ metadata:
   name: transition-operator-controller-manager-metrics-service
   namespace: transition-operator-system
 spec:
+  type: NodePort
   ports:
   - name: https
     port: 8443
     protocol: TCP
     targetPort: 8443
+  - name: heartbeat
+    port: 8090
+    protocol: TCP
+    targetPort: 8090
+    nodePort: 30092
   selector:
     app.kubernetes.io/name: transition-operator
     control-plane: controller-manager
@@ -2683,12 +2699,15 @@ metadata:
     control-plane: controller-manager
   name: transition-operator-controller-manager
   namespace: transition-operator-system
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app.kubernetes.io/name: transition-operator
       control-plane: controller-manager
+
   template:
     metadata:
       annotations:
@@ -2696,114 +2715,175 @@ spec:
       labels:
         app.kubernetes.io/name: transition-operator
         control-plane: controller-manager
+
     spec:
+      serviceAccountName: transition-operator-controller-manager
+      terminationGracePeriodSeconds: 10
+
+      securityContext:
+        runAsNonRoot: false
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
-      - args:
+      - name: manager
+
+        image: docker.io/vitu1/transition-operator:debug
+        imagePullPolicy: Always
+
+        command:
+        - /manager
+
+        args:
         - --metrics-bind-address=:8443
         - --leader-elect
         - --health-probe-bind-address=:8081
-        command:
-        - /manager
+
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+
+        - containerPort: 8090
+          name: heartbeat
+          protocol: TCP
+
         env:
         - name: MINIO_ENDPOINT
           valueFrom:
             secretKeyRef:
+              name: minio-secret
               key: MINIO_ENDPOINT
-              name: transition-operator-minio-secret
+
         - name: MINIO_ACCESS_KEY
           valueFrom:
             secretKeyRef:
+              name: minio-secret
               key: MINIO_ACCESS_KEY
-              name: transition-operator-minio-secret
+
         - name: MINIO_SECRET_KEY
           valueFrom:
             secretKeyRef:
+              name: minio-secret
               key: MINIO_SECRET_KEY
-              name: transition-operator-minio-secret
+
         - name: MINIO_BUCKET
           valueFrom:
             secretKeyRef:
+              name: minio-secret
               key: MINIO_BUCKET
-              name: transition-operator-minio-secret
+
         - name: REPOSITORY
           valueFrom:
             secretKeyRef:
+              name: reg-credentials
               key: username
-              name: transition-operator-reg-credentials
+
         - name: REGISTRY_PASSWORD
           valueFrom:
             secretKeyRef:
+              name: reg-credentials
               key: password
-              name: transition-operator-reg-credentials
+
         - name: REGISTRY_URL
           valueFrom:
             secretKeyRef:
+              name: reg-credentials
               key: registry
-              name: transition-operator-reg-credentials
+
         - name: SECRET_NAME_REF
           value: reg-credentials
+
         - name: SECRET_NAMESPACE_REF
           value: default
+
         - name: GIT_SERVER_URL
           valueFrom:
             secretKeyRef:
+              name: git-secret
               key: GIT_SERVER_URL
-              name: transition-operator-git-secret
+
         - name: GIT_SECRET_NAME
           valueFrom:
             secretKeyRef:
+              name: git-secret
               key: GIT_SECRET_NAME
-              name: transition-operator-git-secret
+
         - name: GIT_SECRET_NAMESPACE
           valueFrom:
             secretKeyRef:
+              name: git-secret
               key: GIT_SECRET_NAMESPACE
-              name: transition-operator-git-secret
+
         - name: HEARTBEAT_FAULT_DELAY
           value: "15"
+
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: docker.io/vitu1/transition-operator:debug
-        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: true
+
+          capabilities:
+            add:
+            - SYS_ADMIN
+
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-storage
+
+        - mountPath: /var/tmp
+          name: var-tmp-storage
+
+        - mountPath: /storage
+          name: storage
+
+        - mountPath: /var/lib/containers
+          name: containers-storage
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+            ephemeral-storage: 2Gi
+
+          limits:
+            cpu: 1
+            memory: 2Gi
+            ephemeral-storage: 10Gi
+
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8081
           initialDelaySeconds: 15
           periodSeconds: 20
-        name: manager
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        - containerPort: 8090
-          name: heartbeat
-          protocol: TCP
+
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-        volumeMounts: []
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      serviceAccountName: transition-operator-controller-manager
-      terminationGracePeriodSeconds: 10
-      volumes: []
+
+      volumes:
+      - name: tmp-storage
+        emptyDir: {}
+
+      - name: var-tmp-storage
+        emptyDir: {}
+
+      - name: storage
+        emptyDir:
+          sizeLimit: 10Gi
+
+      - name: containers-storage
+        emptyDir:
+          sizeLimit: 20Gi
+
