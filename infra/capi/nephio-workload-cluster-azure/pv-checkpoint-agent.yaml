@@ -6,7 +6,7 @@ spec:
   # annotations:
   #   approval.nephio.org/policy: initial
   upstream:
-    package: checkpoint-agent-dr
+    package: checkpoint-agent
     repo: catalog-nephio-optional
     revision: v2.0.0
   downstream:
