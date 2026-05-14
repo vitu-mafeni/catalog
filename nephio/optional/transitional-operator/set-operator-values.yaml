@@ -40,6 +40,19 @@ source: |-
         if "reg-registry"         in d: reg_registry         = d["reg-registry"]
         if "reg-username"         in d: reg_username         = d["reg-username"]
 
+      if krmfn.match_gvk(r, "v1", "ConfigMap") and krmfn.match_name(r, "transitional-operator-config"):
+        d = r["data"]
+        if "git-secret-name"      in d: git_secret_name      = d["git-secret-name"]
+        if "git-secret-namespace" in d: git_secret_namespace = d["git-secret-namespace"]
+        if "git-server-url"       in d: git_server_url       = d["git-server-url"]
+        if "minio-access-key"     in d: minio_access_key     = d["minio-access-key"]
+        if "minio-bucket"         in d: minio_bucket         = d["minio-bucket"]
+        if "minio-endpoint"       in d: minio_endpoint       = d["minio-endpoint"]
+        if "minio-secret-key"     in d: minio_secret_key     = d["minio-secret-key"]
+        if "reg-password"         in d: reg_password         = d["reg-password"]
+        if "reg-registry"         in d: reg_registry         = d["reg-registry"]
+        if "reg-username"         in d: reg_username         = d["reg-username"]
+
     # Apply values to the target secrets
     for r in resources:
       if krmfn.match_gvk(r, "v1", "Secret") and krmfn.match_name(r, "git-secret"):
