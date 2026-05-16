@@ -1,0 +1,85 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: transition-operator-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/checkpoints
+  verbs:
+  - create
+  - patch
+  - proxy
+  - update
+- apiGroups:
+  - transition.dcnlab.ssu.ac.kr
+  resources:
+  - checkpoints
+  - clusterpolicies
+  - nodehealths
+  - packagepolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - transition.dcnlab.ssu.ac.kr
+  resources:
+  - checkpoints/finalizers
+  - clusterpolicies/finalizers
+  - nodehealths/finalizers
+  - packagepolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - transition.dcnlab.ssu.ac.kr
+  resources:
+  - checkpoints/status
+  - clusterpolicies/status
+  - nodehealths/status
+  - packagepolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - clusters
+  - machines
+  - machinedeployments
+  - machinesets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete

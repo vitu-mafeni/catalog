@@ -15,7 +15,7 @@ metadata:
   name: checkpoint-agent
 rules:
   - apiGroups: [""]
-    resources: ["nodes"]
+    resources: ["nodes", "pods"]
     verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -78,16 +78,20 @@ spec:
             - name: CHECKPOINT_DIR
               value: /var/lib/kubelet/checkpoints
             - name: MINIO_ENDPOINT
-              value: "54.255.162.223:32001"
+              value: "47.128.64.43:32000"
             - name: MINIO_BUCKET
               value: checkpoints
             - name: PULL_INTERVAL
               value: "5s"
             - name: CONTROLLER_URL
-              value: "http://54.255.162.223:8090/heartbeat"
+              value: "http://47.128.64.43:30092/heartbeat"
             # Remove or leave empty if not on AWS 
             - name: AWS_REGION
               value: "ap-southeast-1"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
