@@ -2327,24 +2327,73 @@ kind: ClusterRole
 metadata:
   name: transition-operator-manager-role
 rules:
+
+# =========================================================
+# Core Kubernetes Resources
+# =========================================================
 - apiGroups:
   - ""
   resources:
   - pods
+  - pods/log
+  - pods/exec
+  - pods/checkpoints
+  - services
+  - endpoints
+  - events
+  - configmaps
   - secrets
+  - nodes
+  - namespaces
+  - persistentvolumeclaims
   verbs:
   - get
   - list
   - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods/checkpoints
-  verbs:
   - create
-  - patch
-  - proxy
   - update
+  - patch
+  - delete
+
+# =========================================================
+# Apps
+# =========================================================
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  - statefulsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# Batch
+# =========================================================
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# Transition Operator CRDs
+# =========================================================
 - apiGroups:
   - transition.dcnlab.ssu.ac.kr
   resources:
@@ -2352,23 +2401,16 @@ rules:
   - clusterpolicies
   - nodehealths
   - packagepolicies
+  - remoteclusters
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
-- apiGroups:
-  - transition.dcnlab.ssu.ac.kr
-  resources:
-  - checkpoints/finalizers
-  - clusterpolicies/finalizers
-  - nodehealths/finalizers
-  - packagepolicies/finalizers
-  verbs:
+  - create
   - update
+  - patch
+  - delete
+
 - apiGroups:
   - transition.dcnlab.ssu.ac.kr
   resources:
@@ -2376,14 +2418,35 @@ rules:
   - clusterpolicies/status
   - nodehealths/status
   - packagepolicies/status
+  - remoteclusters/status
   verbs:
   - get
-  - patch
   - update
+  - patch
+
+- apiGroups:
+  - transition.dcnlab.ssu.ac.kr
+  resources:
+  - checkpoints/finalizers
+  - clusterpolicies/finalizers
+  - nodehealths/finalizers
+  - packagepolicies/finalizers
+  - remoteclusters/finalizers
+  verbs:
+  - update
+
+# =========================================================
+# Cluster API Core
+# =========================================================
 - apiGroups:
   - cluster.x-k8s.io
   resources:
   - clusters
+  - machines
+  - machinedeployments
+  - machinesets
+  - machinehealthchecks
+  - machinepools
   verbs:
   - get
   - list
@@ -2392,10 +2455,157 @@ rules:
   - update
   - patch
   - delete
+
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - clusters/status
+  - machines/status
+  - machinedeployments/status
+  - machinesets/status
+  - machinehealthchecks/status
+  - machinepools/status
+  verbs:
+  - get
+  - update
+  - patch
+
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - clusters/finalizers
+  - machines/finalizers
+  - machinedeployments/finalizers
+  - machinesets/finalizers
+  verbs:
+  - update
+
+# =========================================================
+# Kubeadm Control Plane
+# =========================================================
+- apiGroups:
+  - controlplane.cluster.x-k8s.io
+  resources:
+  - kubeadmcontrolplanes
+  - kubeadmcontrolplanetemplates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# Bootstrap Provider
+# =========================================================
+- apiGroups:
+  - bootstrap.cluster.x-k8s.io
+  resources:
+  - kubeadmconfigs
+  - kubeadmconfigtemplates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# AWS Provider
+# =========================================================
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - awsclusters
+  - awsclusters/status
+  - awsmachines
+  - awsmachines/status
+  - awsmachinetemplates
+  - awsmachinepools
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# Azure Provider
+# =========================================================
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - azureclusters
+  - azureclusters/status
+  - azuremachines
+  - azuremachines/status
+  - azuremachinetemplates
+  - azuremachinepools
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# OpenStack Provider
+# =========================================================
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - openstackclusters
+  - openstackclusters/status
+  - openstackmachines
+  - openstackmachines/status
+  - openstackmachinetemplates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# GCP Provider
+# =========================================================
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - gcpclusters
+  - gcpclusters/status
+  - gcpmachines
+  - gcpmachines/status
+  - gcpmachinetemplates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# ArgoCD
+# =========================================================
 - apiGroups:
   - argoproj.io
   resources:
   - applications
+  - applicationsets
+  - appprojects
+  - rollouts
   verbs:
   - get
   - list
@@ -2404,6 +2614,50 @@ rules:
   - update
   - patch
   - delete
+
+# =========================================================
+# Coordination
+# =========================================================
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# =========================================================
+# Authentication
+# =========================================================
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+
+# =========================================================
+# Authorization
+# =========================================================
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+
+# =========================================================
+# Metrics
+# =========================================================
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -2557,7 +2811,6 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/name: transition-operator
   name: transition-operator-packagepolicy-viewer-role
 rules:
 - apiGroups:
@@ -2591,6 +2844,7 @@ subjects:
 - kind: ServiceAccount
   name: transition-operator-controller-manager
   namespace: transition-operator-system
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
