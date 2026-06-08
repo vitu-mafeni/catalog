@@ -1,0 +1,443 @@
+# ============================================================
+# keycloak-config.yaml
+# Idempotent Keycloak configuration via Kubernetes Job.
+# Deploy after Keycloak is ready, or use as an Argo CD
+# post-sync hook (see the Job annotations below).
+#
+# Configures:
+#   - Realm: jupyterhub
+#   - OIDC client: jupyterhub-client (confidential)
+#   - OIDC client: quota-admin-ui (public, PKCE)
+#   - Realm role: platform-admin
+#   - Groups: cpu-users, gpu-users, gpu-power-users,
+#             researchers, platform-admin
+#   - Users: admin, adminuser2 (platform-admin role + group)
+#   - Groups claim mapper on both clients
+# ============================================================
+
+# ── Secrets ──────────────────────────────────────────────────
+# Credentials Keycloak admin API and the JupyterHub client secret.
+# In production, replace with a Sealed Secret or ESO ExternalSecret.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-config-credentials
+  namespace: keycloak
+type: Opaque
+stringData:
+  KEYCLOAK_ADMIN_USER: "admin"
+  KEYCLOAK_ADMIN_PASS: "changeme123"
+  JUPYTERHUB_CLIENT_SECRET: "jupyterhub-secret-changeme"
+
+# ── ConfigMap: configuration spec ────────────────────────────
+# Edit this ConfigMap to change realm settings, clients,
+# groups, or platform admin users. The Job reads it at runtime.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config-spec
+  namespace: keycloak
+data:
+  # ---- Realm settings ----
+  realm: "jupyterhub"
+  realm_display_name: "CNLab ML Platform"
+  realm_ssl_required: "none"           # "none" | "external" | "all"
+  realm_access_token_lifespan: "3600"  # seconds
+
+  # ---- JupyterHub OIDC client (confidential) ----
+  jupyterhub_client_id: "jupyterhub-client"
+
+  # ---- Admin Panel OIDC client (public, PKCE) ----
+  admin_ui_client_id: "quota-admin-ui"
+
+  # ---- Realm role ----
+  platform_admin_role: "platform-admin"
+
+  # ---- Platform admin users (space-separated) ----
+  platform_admin_users: "admin adminuser2"
+  platform_admin_default_password: "changeme123"
+
+  # ---- Kernel quota groups (space-separated) ----
+  quota_groups: "cpu-users gpu-users gpu-power-users researchers platform-admin"
+
+# ── ConfigMap: configure script ──────────────────────────────
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-configure-script
+  namespace: keycloak
+data:
+  configure.py: |
+    #!/usr/bin/env python3
+    """
+    Idempotent Keycloak configuration script.
+    Reads settings from environment variables (injected from ConfigMaps/Secrets).
+    All operations are safe to rerun — existing resources are skipped.
+    """
+    import os, sys, json, time
+    import urllib.request, urllib.parse, urllib.error
+
+    # ── Config from environment ───────────────────────────────
+    KEYCLOAK_URL  = os.environ["KEYCLOAK_URL"]
+    ADMIN_USER    = os.environ["KEYCLOAK_ADMIN_USER"]
+    ADMIN_PASS    = os.environ["KEYCLOAK_ADMIN_PASS"]
+    CLIENT_SECRET = os.environ["JUPYTERHUB_CLIENT_SECRET"]
+
+    REALM              = os.environ["realm"]
+    REALM_DISPLAY_NAME = os.environ["realm_display_name"]
+    REALM_SSL_REQUIRED = os.environ["realm_ssl_required"]
+    REALM_TOKEN_TTL    = int(os.environ["realm_access_token_lifespan"])
+
+    JH_CLIENT_ID       = os.environ["jupyterhub_client_id"]
+    UI_CLIENT_ID       = os.environ["admin_ui_client_id"]
+    PLATFORM_ROLE      = os.environ["platform_admin_role"]
+    PLATFORM_ADMINS    = os.environ["platform_admin_users"].split()
+    ADMIN_DEFAULT_PASS = os.environ["platform_admin_default_password"]
+    QUOTA_GROUPS       = os.environ["quota_groups"].split()
+
+    # ── HTTP helpers ──────────────────────────────────────────
+    TOKEN = None
+
+    def _request(method, path, data=None, token=None):
+        url = KEYCLOAK_URL + path
+        body = json.dumps(data).encode() if data is not None else None
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        req = urllib.request.Request(url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req) as r:
+                raw = r.read()
+                return r.status, json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as e:
+            raw = e.read()
+            return e.code, json.loads(raw) if raw else {}
+
+    def get(path):
+        code, body = _request("GET", path, token=TOKEN)
+        return body
+
+    def post(path, data):
+        code, body = _request("POST", path, data, token=TOKEN)
+        if code not in (200, 201, 204, 409):
+            print(f"  WARNING POST {path} → HTTP {code}: {body}", flush=True)
+        return code
+
+    def put(path, data):
+        code, body = _request("PUT", path, data, token=TOKEN)
+        if code not in (200, 201, 204):
+            print(f"  WARNING PUT {path} → HTTP {code}: {body}", flush=True)
+        return code
+
+    def client_uuid(client_id):
+        results = get(f"/admin/realms/{REALM}/clients?clientId={client_id}")
+        return results[0]["id"] if results else None
+
+    def mapper_exists(client_uuid, mapper_name):
+        mappers = get(f"/admin/realms/{REALM}/clients/{client_uuid}/protocol-mappers/models")
+        return any(m["name"] == mapper_name for m in mappers)
+
+    def ensure_groups_mapper(uuid, full_path=False):
+        if mapper_exists(uuid, "groups"):
+            print("  Groups mapper already exists.", flush=True)
+            return
+        code = post(f"/admin/realms/{REALM}/clients/{uuid}/protocol-mappers/models", {
+            "name": "groups",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-group-membership-mapper",
+            "config": {
+                "full.path": str(full_path).lower(),
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "groups"
+            }
+        })
+        print(f"  Groups mapper created (HTTP {code}).", flush=True)
+
+    # ── 1. Admin token ────────────────────────────────────────
+    print("[1/9] Getting admin token...", flush=True)
+    params = urllib.parse.urlencode({
+        "username": ADMIN_USER,
+        "password": ADMIN_PASS,
+        "grant_type": "password",
+        "client_id": "admin-cli"
+    }).encode()
+    req = urllib.request.Request(
+        f"{KEYCLOAK_URL}/realms/master/protocol/openid-connect/token",
+        data=params,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST"
+    )
+    for attempt in range(10):
+        try:
+            with urllib.request.urlopen(req) as r:
+                TOKEN = json.loads(r.read())["access_token"]
+            break
+        except Exception as e:
+            print(f"  Attempt {attempt+1}/10 failed: {e}. Retrying in 6s...", flush=True)
+            time.sleep(6)
+    else:
+        print("  FATAL: could not obtain admin token.", flush=True)
+        sys.exit(1)
+    print("  OK.", flush=True)
+
+    # ── 2. Realm ──────────────────────────────────────────────
+    print(f"[2/9] Creating realm '{REALM}'...", flush=True)
+    code = post("/admin/realms", {
+        "realm": REALM,
+        "enabled": True,
+        "displayName": REALM_DISPLAY_NAME,
+        "sslRequired": REALM_SSL_REQUIRED,
+        "registrationAllowed": False,
+        "loginWithEmailAllowed": True,
+        "accessTokenLifespan": REALM_TOKEN_TTL
+    })
+    print("  Already exists." if code == 409 else f"  Created (HTTP {code}).", flush=True)
+
+    put(f"/admin/realms/{REALM}/authentication/required-actions/VERIFY_PROFILE", {
+        "alias": "VERIFY_PROFILE", "enabled": False,
+        "defaultAction": False, "priority": 90, "config": {}
+    })
+    put(f"/admin/realms/{REALM}", {"attributes": {"userProfileEnabled": "false"}})
+    print("  VERIFY_PROFILE disabled.", flush=True)
+
+    # ── 3. JupyterHub OIDC client ─────────────────────────────
+    print(f"[3/9] Creating OIDC client '{JH_CLIENT_ID}'...", flush=True)
+    jh_uuid = client_uuid(JH_CLIENT_ID)
+    if jh_uuid:
+        print(f"  Already exists (UUID: {jh_uuid}).", flush=True)
+    else:
+        code = post(f"/admin/realms/{REALM}/clients", {
+            "clientId": JH_CLIENT_ID,
+            "secret": CLIENT_SECRET,
+            "enabled": True,
+            "protocol": "openid-connect",
+            "publicClient": False,
+            "standardFlowEnabled": True,
+            "directAccessGrantsEnabled": False,
+            "redirectUris": ["*"],
+            "webOrigins": ["*"],
+            "attributes": {"post.logout.redirect.uris": "*"}
+        })
+        print(f"  Created (HTTP {code}).", flush=True)
+        jh_uuid = client_uuid(JH_CLIENT_ID)
+    print(f"  UUID: {jh_uuid}", flush=True)
+
+    # ── 4. Groups mapper on JupyterHub client ─────────────────
+    print(f"[4/9] Groups mapper on '{JH_CLIENT_ID}'...", flush=True)
+    ensure_groups_mapper(jh_uuid, full_path=False)
+
+    # ── 5. Admin Panel public client ──────────────────────────
+    print(f"[5/9] Creating public client '{UI_CLIENT_ID}'...", flush=True)
+    ui_uuid = client_uuid(UI_CLIENT_ID)
+    if ui_uuid:
+        print(f"  Already exists (UUID: {ui_uuid}).", flush=True)
+    else:
+        code = post(f"/admin/realms/{REALM}/clients", {
+            "clientId": UI_CLIENT_ID,
+            "enabled": True,
+            "protocol": "openid-connect",
+            "publicClient": True,
+            "standardFlowEnabled": True,
+            "directAccessGrantsEnabled": False,
+            "redirectUris": ["*"],
+            "webOrigins": ["*"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "+",
+                "skip.logout.consent": "true"
+            }
+        })
+        print(f"  Created (HTTP {code}).", flush=True)
+        ui_uuid = client_uuid(UI_CLIENT_ID)
+    print(f"  UUID: {ui_uuid}", flush=True)
+
+    # Ensure skip.logout.consent is set (idempotent)
+    client_json = get(f"/admin/realms/{REALM}/clients/{ui_uuid}")
+    attrs = client_json.get("attributes") or {}
+    attrs["skip.logout.consent"] = "true"
+    attrs["post.logout.redirect.uris"] = "+"
+    client_json["attributes"] = attrs
+    put(f"/admin/realms/{REALM}/clients/{ui_uuid}", client_json)
+    print("  skip.logout.consent ensured.", flush=True)
+
+    print(f"[6/9] Groups mapper on '{UI_CLIENT_ID}'...", flush=True)
+    ensure_groups_mapper(ui_uuid, full_path=True)
+
+    # ── 6. platform-admin realm role ─────────────────────────
+    print(f"[7/9] Creating realm role '{PLATFORM_ROLE}'...", flush=True)
+    code = post(f"/admin/realms/{REALM}/roles", {
+        "name": PLATFORM_ROLE,
+        "description": "Full access to the Quota Admin Panel"
+    })
+    print("  Already exists." if code == 409 else f"  Created (HTTP {code}).", flush=True)
+    role = get(f"/admin/realms/{REALM}/roles/{PLATFORM_ROLE}")
+    role_id = role["id"]
+    print(f"  Role ID: {role_id}", flush=True)
+
+    # ── 7. Kernel quota groups ────────────────────────────────
+    print("[8/9] Creating kernel quota groups...", flush=True)
+    for group in QUOTA_GROUPS:
+        code = post(f"/admin/realms/{REALM}/groups", {"name": group})
+        print(f"  '{group}' — {'already exists' if code == 409 else f'HTTP {code}'}", flush=True)
+
+    # Fetch platform-admin group ID
+    groups = get(f"/admin/realms/{REALM}/groups?search=platform-admin")
+    pa_group = next((g for g in groups if g["name"] == "platform-admin"), None)
+    pa_group_id = pa_group["id"] if pa_group else None
+
+    # ── 8. Platform admin users ───────────────────────────────
+    print("[9/9] Provisioning platform admin users...", flush=True)
+    for username in PLATFORM_ADMINS:
+        users = get(f"/admin/realms/{REALM}/users?username={username}&exact=true")
+        if users:
+            user_id = users[0]["id"]
+            print(f"  '{username}' exists — ensuring enabled + email verified...", flush=True)
+            put(f"/admin/realms/{REALM}/users/{user_id}", {
+                "enabled": True, "emailVerified": True, "requiredActions": []
+            })
+        else:
+            print(f"  Creating '{username}'...", flush=True)
+            code = post(f"/admin/realms/{REALM}/users", {
+                "username": username,
+                "enabled": True,
+                "emailVerified": True,
+                "firstName": "Platform",
+                "lastName": "Admin",
+                "email": f"{username}@platform.local",
+                "requiredActions": []
+            })
+            print(f"  Created (HTTP {code}).", flush=True)
+            users = get(f"/admin/realms/{REALM}/users?username={username}&exact=true")
+            user_id = users[0]["id"]
+
+        put(f"/admin/realms/{REALM}/users/{user_id}/reset-password", {
+            "type": "password", "value": ADMIN_DEFAULT_PASS, "temporary": False
+        })
+        print(f"  Password set for '{username}'.", flush=True)
+
+        post(f"/admin/realms/{REALM}/users/{user_id}/role-mappings/realm",
+             [{"id": role_id, "name": PLATFORM_ROLE}])
+        print(f"  Role '{PLATFORM_ROLE}' assigned to '{username}'.", flush=True)
+
+        if pa_group_id:
+            put(f"/admin/realms/{REALM}/users/{user_id}/groups/{pa_group_id}", {})
+            print(f"  Added '{username}' to platform-admin group.", flush=True)
+
+    # ── Summary ───────────────────────────────────────────────
+    print("", flush=True)
+    print("=" * 48, flush=True)
+    print(f"Realm:               {REALM}", flush=True)
+    print(f"JupyterHub client:   {JH_CLIENT_ID}", flush=True)
+    print(f"Admin Panel client:  {UI_CLIENT_ID}  (public, PKCE)", flush=True)
+    print(f"Platform-admin role: {PLATFORM_ROLE}", flush=True)
+    print(f"OIDC discovery:", flush=True)
+    print(f"  {KEYCLOAK_URL}/realms/{REALM}/.well-known/openid-configuration", flush=True)
+    print(f"Platform admins (temp password: {ADMIN_DEFAULT_PASS}):", flush=True)
+    for u in PLATFORM_ADMINS:
+        print(f"  - {u}", flush=True)
+    print(f"Quota groups: {', '.join(QUOTA_GROUPS)}", flush=True)
+    print("=" * 48, flush=True)
+
+# ── Job ───────────────────────────────────────────────────────
+# Argo CD post-sync hook: runs once after all resources sync.
+# Remove the annotations if running outside of Argo CD.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-configure
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: python:3.12-alpine
+          command: ["python3", "/scripts/configure.py"]
+          env:
+            - name: KEYCLOAK_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080"
+            # ── From Secret ──
+            - name: KEYCLOAK_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-config-credentials
+                  key: KEYCLOAK_ADMIN_USER
+            - name: KEYCLOAK_ADMIN_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-config-credentials
+                  key: KEYCLOAK_ADMIN_PASS
+            - name: JUPYTERHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-config-credentials
+                  key: JUPYTERHUB_CLIENT_SECRET
+            # ── From ConfigMap ──
+            - name: realm
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: realm
+            - name: realm_display_name
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: realm_display_name
+            - name: realm_ssl_required
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: realm_ssl_required
+            - name: realm_access_token_lifespan
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: realm_access_token_lifespan
+            - name: jupyterhub_client_id
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: jupyterhub_client_id
+            - name: admin_ui_client_id
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: admin_ui_client_id
+            - name: platform_admin_role
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: platform_admin_role
+            - name: platform_admin_users
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: platform_admin_users
+            - name: platform_admin_default_password
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: platform_admin_default_password
+            - name: quota_groups
+              valueFrom:
+                configMapKeyRef:
+                  name: keycloak-config-spec
+                  key: quota_groups
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: keycloak-configure-script
