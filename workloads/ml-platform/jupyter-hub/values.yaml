@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jhub-ns
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jhub-values
+  namespace: jhub-ns
+data:
+  values.yaml: |
+    proxy:
+      secretToken: "79044be905ddf54c21eb22b585f3b2b1f4679c972fcb6f479eeec9d8dfad4ea7"
+      service:
+        type: NodePort
+        nodePorts:
+          http: 30080
+          https: 30443
+
+    hub:
+      services:
+        quota-api:
+          admin: true
+          apiToken: "79044be905ddf54c21eb22b585f3b2b1f4679c972fcb6f479eeec9d8dfad4ea7"
+
+      config:
+        JupyterHub:
+          authenticator_class: oauthenticator.generic.GenericOAuthenticator
+
+        GenericOAuthenticator:
+          client_id: "jupyterhub-client"
+          client_secret: "jupyterhub-secret-changeme"
+          oauth_callback_url: "http://192.168.3.234:30080/hub/oauth_callback"
+          token_url: "http://keycloak.keycloak.svc.cluster.local:8080/realms/jupyterhub/protocol/openid-connect/token"
+          userdata_url: "http://keycloak.keycloak.svc.cluster.local:8080/realms/jupyterhub/protocol/openid-connect/userinfo"
+          authorize_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/auth"
+
+          username_claim: "preferred_username"
+          scope:
+            - openid
+            - profile
+            - email
+
+          allow_all: true
+          auto_login: true
+          enable_auth_state: true
+
+          admin_users:
+            - admin
+            - adminuser2
+
+      extraEnv:
+        QUOTA_API_URL: "http://10.244.0.1:9000"
+        QUOTA_API_TOKEN: "testtoken123"
+        QUOTA_PORTAL_URL: "http://192.168.3.200:3001"
+        QUOTA_CPU_KERNELS: "python3,python_kubernetes"
+
+      extraConfig:
+        oauthNoConfirm: |
+          import logging as _log
+          from jupyterhub.apihandlers.auth import OAuthAuthorizeHandler
+
+          def _no_confirm(self, user, oauth_client, requested_scopes):
+              return False
+
+          OAuthAuthorizeHandler.needs_oauth_confirm = _no_confirm
+
+        adminAccess: |
+          import os as _os
+          c.JupyterHub.admin_access = True
+          c.JupyterHub.cookie_max_age_days = 14
+          c.JupyterHub.allow_named_servers = True
+          c.JupyterHub.named_server_limit_per_user = 5
+
+          _portal = _os.environ.get("QUOTA_PORTAL_URL", "").strip()
+          if _portal:
+              c.OAuthenticator.logout_redirect_url = _portal.rstrip("/") + "/logout"
+
+        loadRoles: |
+          c.JupyterHub.load_roles = [
+              {
+                  "name": "quota-api-token-role",
+                  "scopes": ["admin:users", "tokens!user"],
+                  "services": ["quota-api"],
+              }
+          ]
+
+        tokenToUser: |
+          import base64, json
+          from oauthenticator.generic import GenericOAuthenticator
+          from oauthenticator.oauth2 import OAuthenticator
+
+          async def _jwt_token_to_user(self, token_info):
+              access_token = token_info.get("access_token", "")
+              if access_token:
+                  parts = access_token.split(".")
+                  if len(parts) >= 2:
+                      payload = parts[1] + "=="
+                      claims = json.loads(base64.urlsafe_b64decode(payload))
+                      return claims
+              return await OAuthenticator.token_to_user(self, token_info)
+
+          GenericOAuthenticator.token_to_user = _jwt_token_to_user
+
+        kernelAccess: |
+          import os
+          c.KubeSpawner.pre_spawn_hook = lambda spawner: None
+          c.KubeSpawner.post_stop_hook = lambda spawner: None
+
+    singleuser:
+      defaultUrl: "/lab"
+      image:
+        name: vitu1/jupyterhub-singleuser
+        tag: "eg-compat-oidc-v2"
+      storage:
+        type: dynamic
+
+      networkPolicy:
+        egress:
+          - ports:
+              - port: 8888
+              - port: 8877
+            to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: enterprise-gateway
+
+      extraEnv:
+        JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
+        JUPYTER_GATEWAY_WS_URL: "ws://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
+        QUOTA_API_URL: "http://10.244.0.1:9000"
+        QUOTA_API_TOKEN: "testtoken123"
+
+    ingress:
+      enabled: false
