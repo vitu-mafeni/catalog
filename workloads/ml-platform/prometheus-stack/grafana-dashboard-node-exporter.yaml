@@ -6,6 +6,8 @@ metadata:
   labels:
     grafana_dashboard: "1"
     grafana_folder: "Imported"
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
 data:
   node-exporter.json: |
     {
