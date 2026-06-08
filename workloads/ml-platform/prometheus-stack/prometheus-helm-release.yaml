@@ -25,6 +25,39 @@ spec:
         # Equivalent to --set retentionSize=""
         retentionSize: ""
 
+    grafana:
+      # ── grafana.ini ───────────────────────────────────────────────────────────
+      grafana.ini:
+        auth.anonymous:
+          enabled: true
+          org_name: Main Org.
+          org_role: Viewer
+        security:
+          allow_embedding: true
+
+      # ── Sidecar: watches ConfigMaps labelled grafana_datasource=1 ─────────────
+      sidecar:
+        datasources:
+          enabled: true
+          label: grafana_datasource
+          labelValue: "1"
+          # Reload Grafana when a datasource ConfigMap changes
+          # (sidecar sends SIGHUP; no pod restart needed)
+          reloadURL: "http://localhost:3000/api/admin/provisioning/datasources/reload"
+          skipReload: false
+        dashboards:
+          enabled: true
+          label: grafana_dashboard
+          labelValue: "1"
+          searchNamespace: monitoring
+          # Hot-reload dashboards without pod restart
+          reloadURL: "http://localhost:3000/api/admin/provisioning/dashboards/reload"
+          skipReload: false
+          # Mount all dashboard ConfigMaps under this folder name in the UI
+          folderAnnotation: grafana_folder
+          provider:
+            foldersFromFilesStructure: false
+    
   install:
     createNamespace: true
     remediation:
