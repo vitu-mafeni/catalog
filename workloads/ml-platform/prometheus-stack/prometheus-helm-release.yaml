@@ -1,33 +1,29 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
-metadata:
+metadata: # kpt-merge: monitoring/prometheus
   name: prometheus
   namespace: monitoring
 spec:
   interval: 5m
   releaseName: prometheus
-
   chart:
     spec:
       chart: kube-prometheus-stack
-      version: 80.10.0
+      version: 86.2.0
       sourceRef:
         kind: HelmRepository
         name: prometheus-community
         namespace: monitoring
-
   values:
     prometheus:
       prometheusSpec:
         # Equivalent to --set-json 'storageSpec={}'
         storageSpec: {}
-
         # Equivalent to --set retentionSize=""
         retentionSize: ""
       service:
         type: NodePort
         nodePort: 32090
-
     alertmanager:
       service:
         type: NodePort
@@ -38,7 +34,6 @@ spec:
         type: NodePort
         nodePort: 32300
 
-      # ── grafana.ini ───────────────────────────────────────────────────────────
       grafana.ini:
         auth.anonymous:
           enabled: true
@@ -47,34 +42,70 @@ spec:
         security:
           allow_embedding: true
 
-      # ── Sidecar: watches ConfigMaps labelled grafana_datasource=1 ─────────────
+      # Baked directly into a Helm-managed volume — available before Grafana starts
+      # No sidecar race condition possible for datasources
+      additionalDataSources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          url: http://prometheus-kube-prometheus-prometheus.monitoring:9090/
+          access: proxy
+          isDefault: true
+          orgId: 1
+          jsonData:
+            httpMethod: POST
+            timeInterval: 30s
+
+        - name: Alertmanager
+          uid: alertmanager
+          type: alertmanager
+          url: http://prometheus-kube-prometheus-alertmanager.monitoring:9093/
+          access: proxy
+          orgId: 1
+          jsonData:
+            handleGrafanaManagedAlerts: false
+            implementation: prometheus
+
+        - name: Loki
+          uid: loki
+          type: loki
+          url: http://loki.monitoring.svc.cluster.local:3100
+          access: proxy
+          orgId: 1
+
+      # Disable the chart's own datasource ConfigMap — additionalDataSources replaces it
       sidecar:
         datasources:
           enabled: true
           label: grafana_datasource
           labelValue: "1"
-          # Reload Grafana when a datasource ConfigMap changes
-          # (sidecar sends SIGHUP; no pod restart needed)
+          defaultDatasourceEnabled: false
           reloadURL: "http://localhost:3000/api/admin/provisioning/datasources/reload"
           skipReload: false
+          env:
+            - name: REQ_SKIP_INIT
+              value: "false"
+            - name: REQ_TIMEOUT
+              value: "30"
         dashboards:
           enabled: true
           label: grafana_dashboard
           labelValue: "1"
           searchNamespace: monitoring
-          # Hot-reload dashboards without pod restart
           reloadURL: "http://localhost:3000/api/admin/provisioning/dashboards/reload"
           skipReload: false
-          # Mount all dashboard ConfigMaps under this folder name in the UI
+          env:
+            - name: REQ_SKIP_INIT
+              value: "false"
+            - name: REQ_TIMEOUT
+              value: "30"
           folderAnnotation: grafana_folder
           provider:
             foldersFromFilesStructure: false
-    
   install:
     createNamespace: true
     remediation:
       retries: 3
-
   upgrade:
     remediation:
       retries: 3
