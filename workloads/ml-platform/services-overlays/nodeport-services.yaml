@@ -1,0 +1,153 @@
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: enterprise-gateway
+  name: enterprise-gateway
+spec:
+  ports:
+  - name: http
+    nodePort: 32723
+    port: 8888
+    protocol: TCP
+    targetPort: 8888
+  - name: http-response
+    nodePort: 32205
+    port: 8877
+    protocol: TCP
+    targetPort: 8877
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-public
+  namespace: jhub-ns
+spec:
+  ports:
+  - name: http
+    nodePort: 30080
+    port: 80
+    protocol: TCP
+    targetPort: http
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  ports:
+  - nodePort: 30090
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  type: NodePort
+---  
+apiVersion: v1
+kind: Service
+metadata:
+  name: hami-device-plugin-monitor
+  namespace: kube-system
+spec:
+  ports:
+  - name: monitorport
+    nodePort: 31992
+    port: 31992
+    protocol: TCP
+    targetPort: 9394
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hami-scheduler
+  namespace: kube-system
+spec:
+  ports:
+  - name: http
+    nodePort: 31998
+    port: 443
+    protocol: TCP
+    targetPort: 443
+  - name: monitor
+    nodePort: 31993
+    port: 31993
+    protocol: TCP
+    targetPort: 9395
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hami-webui
+  namespace: kube-system
+spec:
+  ports:
+  - name: http
+    nodePort: 31004
+    port: 3000
+    protocol: TCP
+    targetPort: http
+  - name: metrics
+    nodePort: 31890
+    port: 8000
+    protocol: TCP
+    targetPort: metrics
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-grafana
+  namespace: monitoring
+spec:
+  ports:
+  - name: http-web
+    nodePort: 32300
+    port: 80
+    protocol: TCP
+    targetPort: grafana
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-kube-prometheus-alertmanager
+  namespace: monitoring
+spec:
+  ports:
+  - name: http-web
+    nodePort: 31901
+    port: 9093
+    protocol: TCP
+    targetPort: 9093
+  - appProtocol: http
+    name: reloader-web
+    nodePort: 31960
+    port: 8080
+    protocol: TCP
+    targetPort: reloader-web
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-kube-prometheus-prometheus
+  namespace: monitoring
+spec:
+  ports:
+  - name: http-web
+    nodePort: 30828
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  - appProtocol: http
+    name: reloader-web
+    nodePort: 30902
+    port: 8080
+    protocol: TCP
+    targetPort: reloader-web
+  type: NodePort
