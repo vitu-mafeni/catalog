@@ -21,116 +21,478 @@ data:
     hub:
       services:
         quota-api:
-          admin: true
+          admin: true          # needs admin scope to list all users + delete servers
           apiToken: "79044be905ddf54c21eb22b585f3b2b1f4679c972fcb6f479eeec9d8dfad4ea7"
-
       config:
         JupyterHub:
           authenticator_class: oauthenticator.generic.GenericOAuthenticator
 
         GenericOAuthenticator:
+          # ── Keycloak OIDC endpoints ──────────────────────────────
+          # Replace 192.168.3.234 with your node IP or Keycloak ingress hostname
           client_id: "jupyterhub-client"
           client_secret: "jupyterhub-secret-changeme"
+
+          # oauth_callback_url: "http://192.168.3.234:30080/hub/oauth_callback"
+          # authorize_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/auth"
+          # token_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/token"
+          # userdata_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/userinfo"
+          # logout_redirect_url is set dynamically in extraConfig.adminAccess via the
+          # QUOTA_PORTAL_URL env var → {portal}/logout relay page.
+          # Do NOT set it here: c.GenericOAuthenticator.* is more specific than
+          # c.OAuthenticator.* in Traitlets and would override the extraConfig value,
+          # sending users to Keycloak's confirmation page instead of the portal relay.
           oauth_callback_url: "http://192.168.3.234:30080/hub/oauth_callback"
+
           token_url: "http://keycloak.keycloak.svc.cluster.local:8080/realms/jupyterhub/protocol/openid-connect/token"
           userdata_url: "http://keycloak.keycloak.svc.cluster.local:8080/realms/jupyterhub/protocol/openid-connect/userinfo"
+
+          # Use the external IP for the browser redirect
           authorize_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/auth"
 
+
+          # ── Token claims ─────────────────────────────────────────
           username_claim: "preferred_username"
+          # userdata_params:
+          #   state: state
           scope:
             - openid
             - profile
             - email
-
+            # - groups
+          # All Keycloak users can log in; kernel quota API limits what they see
           allow_all: true
+          # Skip JupyterHub's own /hub/login page — redirect directly to Keycloak.
+          # Combined with the existing Keycloak session cookie this makes the
+          # OAuth round-trip fully silent (~400 ms, no login form shown).
           auto_login: true
+          # ── Group sync ───────────────────────────────────────────
+          # Groups from Keycloak token are synced to JupyterHub groups
+          # which drive the profile_list filtering below
           enable_auth_state: true
+          # ── Access control ───────────────────────────────────────
+          # Only users in at least one of these groups can log in
+          # allowed_groups:
+          #   - cpu-users
+          #   - gpu-users
+          #   - gpu-power-users
+          #   - researchers
 
+          # Admin users — can be Keycloak group or explicit list
           admin_users:
             - admin
             - adminuser2
+        #custom pre_spawn_hook to call quota API and set allowed kernels per-user
 
       extraEnv:
+        # For local dev: use the node IP where fastapi dev is running
+        # For production (quota-api deployed in k8s): use http://quota-api.jhub-ns.svc.cluster.local:8000
         QUOTA_API_URL: "http://10.244.0.1:9000"
-        QUOTA_API_TOKEN: "testtoken123"
+        QUOTA_API_TOKEN: "testtoken123"   # must match QUOTA_API_TOKEN in .env.local
+        # URL of the portal — JupyterHub redirects here after /hub/logout so the
+        # browser lands back on the portal login page (not JH's own login page).
+        # Set this to wherever index.html is served from.
         QUOTA_PORTAL_URL: "http://192.168.3.200:3001"
+        # Comma-separated list of kernel spec IDs shown when a user spawns a CPU-only
+        # server (no GPU profile selected) or spawns directly through JupyterHub's UI.
+        # GPU kernel names are intentionally excluded — users must go through the portal
+        # and select a GPU profile to access those kernels.
+        # Values must exactly match the kernel spec IDs registered in Enterprise Gateway.
         QUOTA_CPU_KERNELS: "python3,python_kubernetes"
 
       extraConfig:
         oauthNoConfirm: |
+          # Skip the "Authorize access" confirmation page for ALL OAuth clients.
+          #
+          # JupyterHub's OAuthAuthorizeHandler.needs_oauth_confirm() already tries
+          # to skip for a user's own server, but it requires the spawner to have its
+          # oauth_client_id registered in hub memory at the exact moment the OAuth
+          # dance is triggered — a race that sometimes loses on first login.
+          #
+          # The safest fix is to monkey-patch needs_oauth_confirm so it always
+          # returns False (never show the confirmation page).  Access control is
+          # handled entirely by Keycloak + quota-api, so this is safe here.
           import logging as _log
           from jupyterhub.apihandlers.auth import OAuthAuthorizeHandler
 
           def _no_confirm(self, user, oauth_client, requested_scopes):
-              return False
+              return False          # always auto-approve
 
           OAuthAuthorizeHandler.needs_oauth_confirm = _no_confirm
+          _log.getLogger("JupyterHub").info(
+              "oauth_no_confirm: OAuthAuthorizeHandler patched — "
+              "confirmation page disabled for all clients"
+          )
 
         adminAccess: |
-          import os as _os
+          # Allow JupyterHub admins to open any user's server directly.
+          # The admin authenticates as themselves via OAuth; admin_access=True
+          # lets them be proxied into the target user's server.
           c.JupyterHub.admin_access = True
+          # Keep admin hub sessions alive for 14 days so re-login is rare.
           c.JupyterHub.cookie_max_age_days = 14
+          # Allow users to run more than one named server simultaneously.
           c.JupyterHub.allow_named_servers = True
           c.JupyterHub.named_server_limit_per_user = 5
-
+          # Users are provisioned via the admin API (not via OAuth login flow),
+          # so they have no stored OAuth refresh tokens. Disabling refresh_pre_spawn
+          # prevents OAuthenticator from blocking spawns with "auth has expired"
+          # for users who have never gone through the interactive OAuth login.
+          # Authentication is enforced by Keycloak JWT validation in the quota-api.
+          c.Authenticator.refresh_pre_spawn = False
+          # After /hub/logout clears the hub session cookie, redirect to the
+          # portal's /logout relay page.  That page reads the Keycloak logout URL
+          # stored in sessionStorage by the portal before navigating here, then
+          # redirects to Keycloak to clear the SSO session as well.
+          # JupyterHub 5.x: the redirect lives on the Authenticator, not JupyterHub.
+          import os as _os
           _portal = _os.environ.get("QUOTA_PORTAL_URL", "").strip()
           if _portal:
               c.OAuthenticator.logout_redirect_url = _portal.rstrip("/") + "/logout"
-
         loadRoles: |
           c.JupyterHub.load_roles = [
               {
                   "name": "quota-api-token-role",
+                  "description": "Allow quota-api service to create user tokens",
                   "scopes": ["admin:users", "tokens!user"],
                   "services": ["quota-api"],
-              }
+              },
+              {
+                  "name": "jupyterhub-idle-culler-role",
+                  "description": "Allow idle culler to list and stop idle servers",
+                  "scopes": [
+                      "list:users",
+                      "read:users:activity",
+                      "read:servers",
+                      "delete:servers",
+                      "admin:users",
+                  ],
+                  "services": ["jupyterhub-idle-culler"],
+              },
           ]
 
         tokenToUser: |
-          import base64, json
+          # Keycloak access tokens are JWTs — decode them directly instead of
+          # calling the userinfo endpoint (which fails with 401 from inside the cluster
+          # because Keycloak's KC_HOSTNAME_STRICT rejects requests on the internal URL).
+          import base64, json, logging
           from oauthenticator.generic import GenericOAuthenticator
           from oauthenticator.oauth2 import OAuthenticator
+
+          _jh_log = logging.getLogger("jh.token_to_user")
+          _orig_token_to_user = OAuthenticator.token_to_user
 
           async def _jwt_token_to_user(self, token_info):
               access_token = token_info.get("access_token", "")
               if access_token:
-                  parts = access_token.split(".")
-                  if len(parts) >= 2:
-                      payload = parts[1] + "=="
-                      claims = json.loads(base64.urlsafe_b64decode(payload))
-                      return claims
-              return await OAuthenticator.token_to_user(self, token_info)
+                  try:
+                      parts = access_token.split(".")
+                      if len(parts) >= 2:
+                          payload = parts[1]
+                          payload += "=" * (4 - len(payload) % 4)
+                          claims = json.loads(base64.urlsafe_b64decode(payload))
+                          if claims.get("preferred_username"):
+                              _jh_log.debug("JWT decoded for user: %s", claims["preferred_username"])
+                              return claims
+                  except Exception as exc:
+                      _jh_log.warning("JWT decode failed, falling back to userinfo: %s", exc)
+              return await _orig_token_to_user(self, token_info)
 
           GenericOAuthenticator.token_to_user = _jwt_token_to_user
 
         kernelAccess: |
-          import os
-          c.KubeSpawner.pre_spawn_hook = lambda spawner: None
-          c.KubeSpawner.post_stop_hook = lambda spawner: None
+          import json, os, logging
+          from tornado.httpclient import AsyncHTTPClient, HTTPRequest, HTTPError
+
+          _log = logging.getLogger("quota_hook")
+          _API = os.environ["QUOTA_API_URL"]
+          _TOK = os.environ["QUOTA_API_TOKEN"]
+          _FALLBACK_KERNEL = "python3"
+
+          def _auth_headers():
+              return {"Authorization": f"Bearer {_TOK}", "Content-Type": "application/json"}
+
+          # CPU kernel names shown when no GPU profile is selected.
+          # Matches QUOTA_CPU_KERNELS env var (split on comma, stripped).
+          _CPU_KERNELS = [
+              k.strip()
+              for k in os.environ.get("QUOTA_CPU_KERNELS", _FALLBACK_KERNEL).split(",")
+              if k.strip()
+          ] or [_FALLBACK_KERNEL]
+
+          async def _pre_spawn(spawner):
+              username = spawner.user.name
+              # kernel_slug is populated when the user spawns via the portal
+              # (portal passes it as user_options); empty for CPU/direct JH UI spawns
+              kernel_slug = (spawner.user_options or {}).get("kernel_slug", "")
+
+              # ── 1. Fetch profiles ────────────────────────────────────────────────
+              # JupyterHub admins bypass per-user profile restrictions and may use any
+              # GPU kernel slug.  We fetch the full catalogue from /kernels/profiles
+              # (a dict keyed by slug) and convert it to the same list shape that the
+              # per-user endpoint returns so the rest of the hook is unchanged.
+              is_admin = getattr(spawner.user, "admin", False)
+
+              profiles = []
+              try:
+                  client = AsyncHTTPClient()
+                  if is_admin and kernel_slug:
+                      # Admin path: fetch all profiles from the global catalogue
+                      req = HTTPRequest(
+                          f"{_API}/kernels/profiles",
+                          headers=_auth_headers(),
+                          request_timeout=5.0,
+                      )
+                      resp = await client.fetch(req)
+                      all_profiles = json.loads(resp.body)   # dict: slug → {display_name, kubespawner_override, …}
+                      # Normalise to list shape expected below
+                      profiles = [
+                          {"slug": s, "kubespawner_override": v["kubespawner_override"]}
+                          for s, v in all_profiles.items()
+                      ]
+                      _log.info("admin %s: loaded %d profiles from catalogue", username, len(profiles))
+                  else:
+                      req = HTTPRequest(
+                          f"{_API}/quotas/users/{username}/profiles",
+                          headers=_auth_headers(),
+                          request_timeout=5.0,
+                      )
+                      resp = await client.fetch(req)
+                      profiles = json.loads(resp.body)
+              except Exception as exc:
+                  _log.warning("quota-api profile fetch failed for %s: %s — falling back to %s",
+                              username, exc, _FALLBACK_KERNEL)
+
+              # ── 2. Build kernel whitelist ────────────────────────────────────────
+              # Rule: the whitelist is locked to EXACTLY the kernel the user chose at
+              # spawn time.  This prevents switching to a different-sized GPU kernel
+              # inside the same server (e.g. spawned with 50% → can't use 25% kernel).
+              #
+              # Portal GPU spawn  (kernel_slug set)  → only the selected GPU kernel
+              # Portal CPU spawn  (kernel_slug empty) → CPU kernels only
+              # Direct JH UI spawn (kernel_slug empty) → CPU kernels only
+              #   (users must go through the portal to access GPU kernels)
+
+              if kernel_slug:
+                  # Find the profile that matches the selected slug
+                  selected = next(
+                      (p for p in profiles if p.get("slug") == kernel_slug),
+                      None,
+                  )
+                  if selected:
+                      gw_name = (
+                          selected.get("kubespawner_override", {})
+                                  .get("environment", {})
+                                  .get("JUPYTER_GATEWAY_KERNEL_NAME", "")
+                      )
+                      kernels = [gw_name] if gw_name else [_FALLBACK_KERNEL]
+                  else:
+                      # slug not found in this user's profiles — deny gracefully
+                      _log.warning(
+                          "kernel_slug %r not in profiles for %s — restricting to CPU",
+                          kernel_slug, username,
+                      )
+                      kernels = _CPU_KERNELS
+              else:
+                  # No GPU profile selected: CPU only
+                  kernels = _CPU_KERNELS
+
+              spawner.environment["KERNEL_WHITELIST"] = ",".join(kernels)
+              spawner.environment["JUPYTER_GATEWAY_KERNEL_NAME"] = kernels[0]
+              # Propagate quota-api credentials into the singleuser pod so that
+              # jupyter_server_config.py can call /enforce-kernel on every kernel launch.
+              # This is belt-and-suspenders: singleuser.extraEnv should also carry these,
+              # but setting them here guarantees they are always present.
+              spawner.environment["QUOTA_API_URL"]   = _API
+              spawner.environment["QUOTA_API_TOKEN"] = _TOK
+              _log.info("kernel whitelist for %s (slug=%r): %s", username, kernel_slug, kernels)
+
+              # ── 2. Enforce quota (secondary safeguard for direct JH UI spawns) ───
+              # The portal enforces atomically in POST /me/spawn; this catches spawns
+              # that bypass the portal entirely.  Fail-open on any non-429 error so a
+              # quota-api outage never prevents all spawning.
+              #
+              # IMPORTANT: pass server_name so the API excludes the currently-spawning
+              # server from its active count.  JH adds it to the active list before
+              # pre_spawn_hook fires, and the portal already wrote its tracking row —
+              # without exclusion every portal GPU spawn would be falsely denied.
+              _server_name = spawner.name or "(default)"
+              try:
+                  client = AsyncHTTPClient()
+                  req = HTTPRequest(
+                      f"{_API}/quotas/users/{username}/enforce-spawn",
+                      method="POST",
+                      body=json.dumps({"kernel_slug": kernel_slug, "server_name": _server_name}),
+                      headers=_auth_headers(),
+                      request_timeout=5.0,
+                  )
+                  await client.fetch(req)
+                  _log.info("quota check passed for %s (kernel_slug=%r)", username, kernel_slug)
+              except HTTPError as exc:
+                  if exc.code == 429:
+                      try:
+                          detail = json.loads(exc.response.body).get("detail", {})
+                          msg = detail.get("message", "Server quota exceeded") if isinstance(detail, dict) else str(detail)
+                      except Exception:
+                          msg = "Server quota exceeded — stop an existing server first"
+                      _log.warning("quota DENIED for %s: %s", username, msg)
+                      raise RuntimeError(msg)
+                  # Non-429 (network error, 5xx, etc.) → fail-open
+                  _log.warning("quota-api enforce-spawn failed for %s (HTTP %s) — allowing spawn",
+                              username, exc.code)
+              except Exception as exc:
+                  _log.warning("quota-api unreachable for %s: %s — allowing spawn", username, exc)
+
+          async def _post_stop(spawner):
+              """Clean up GPU tracking when a server is stopped via JH directly."""
+              username = spawner.user.name
+              server_name = spawner.name or "(default)"
+              try:
+                  client = AsyncHTTPClient()
+                  req = HTTPRequest(
+                      f"{_API}/quotas/users/{username}/servers/{server_name}",
+                      method="DELETE",
+                      allow_nonstandard_methods=True,
+                      headers=_auth_headers(),
+                      request_timeout=5.0,
+                  )
+                  await client.fetch(req)
+                  _log.info("quota tracking cleared for %s/%s", username, server_name)
+              except HTTPError as exc:
+                  if exc.code != 404:
+                      _log.warning("quota untrack failed for %s/%s: HTTP %s",
+                                  username, server_name, exc.code)
+              except Exception as exc:
+                  _log.warning("quota untrack failed for %s/%s: %s", username, server_name, exc)
+
+          c.KubeSpawner.pre_spawn_hook = _pre_spawn
+          c.KubeSpawner.post_stop_hook = _post_stop
+          c.KubeSpawner.profile_list = []
 
     singleuser:
       defaultUrl: "/lab"
-      image:
-        name: vitu1/jupyterhub-singleuser
-        tag: "eg-compat-oidc-v2"
-      storage:
-        type: dynamic
-
+      profileList: []
       networkPolicy:
         egress:
+          # Allow singleuser pods to reach Enterprise Gateway for kernel management
           - ports:
               - port: 8888
+                protocol: TCP
               - port: 8877
+                protocol: TCP
             to:
               - namespaceSelector:
                   matchLabels:
                     kubernetes.io/metadata.name: enterprise-gateway
-
       extraEnv:
         JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
         JUPYTER_GATEWAY_WS_URL: "ws://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
-        QUOTA_API_URL: "http://10.244.0.1:9000"
-        QUOTA_API_TOKEN: "testtoken123"
+        JUPYTER_GATEWAY_REQUEST_TIMEOUT: "300"
+        JUPYTER_GATEWAY_CONNECT_TIMEOUT: "120"
+        JUPYTER_GATEWAY_WS_PING_INTERVAL: "30"
+        KERNEL_SERVICE_ACCOUNT_NAME: "enterprise-gateway-sa"
+        QUOTA_API_URL: "http://10.244.0.1:9000"      # ← add
+        QUOTA_API_TOKEN: "testtoken123"  
+      cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
+      image:
+        name: vitu1/jupyterhub-singleuser
+        tag: "eg-compat-oidc-v2"
+        # pullPolicy: Always
+      storage:
+        type: dynamic
+
+      # custom configs
+      extraFiles:
+
+
+        kernel-filter-config:
+          mountPath: /etc/jupyter/jupyter_server_config.py
+          stringData: |
+            import os
+            _wl = frozenset(k.strip() for k in os.environ.get("KERNEL_WHITELIST", "").split(",") if k.strip())
+            if _wl:
+                # Standard (non-gateway) kernel spec manager
+                c.KernelSpecManager.allowed_kernelspecs = set(_wl)
+
+                # Enterprise Gateway's GatewayKernelSpecManager overrides get_all_specs
+                # without calling super(), so allowed_kernelspecs config is never applied.
+                # Monkey-patch it to filter the results ourselves.
+                try:
+                    from jupyter_server.gateway.managers import GatewayKernelSpecManager
+                    _orig = GatewayKernelSpecManager.get_all_specs
+
+                    async def _filtered_get_all_specs(self):
+                        all_specs = await _orig(self)
+                        return {name: spec for name, spec in all_specs.items() if name in _wl}
+
+                    GatewayKernelSpecManager.get_all_specs = _filtered_get_all_specs
+                except Exception:
+                    pass
+
+            # ── Per-kernel GPU quota enforcement ─────────────────────────────────
+            # GatewayMappingKernelManager.start_kernel() is the true entry point
+            # called for every POST /api/kernels request.  GatewayKernelManager
+            # manages an already-running kernel connection and is NOT called on
+            # kernel creation — patching it was a no-op.
+            import asyncio, json as _json, logging as _logging, \
+                  urllib.request, urllib.error
+
+            _qlog       = _logging.getLogger("quota_kernel_hook")
+            _QUOTA_API  = os.environ.get("QUOTA_API_URL", "")
+            _QUOTA_TOK  = os.environ.get("QUOTA_API_TOKEN", "")
+            _JHUB_USER  = os.environ.get("JUPYTERHUB_USER", "")
+
+            _qlog.warning("quota kernel hook: QUOTA_API_URL=%r USER=%r", _QUOTA_API, _JHUB_USER)
+
+            try:
+                from jupyter_server.gateway.managers import GatewayMappingKernelManager
+
+                _orig_mapping_start = GatewayMappingKernelManager.start_kernel
+
+                async def _quota_checked_start_kernel(self, kernel_id=None, path=None, **kwargs):
+                    # kernel_name is passed as a kwarg by MappingKernelManager
+                    _kname = kwargs.get("kernel_name") or ""
+                    if _QUOTA_API and _QUOTA_TOK and _JHUB_USER:
+                        _body = _json.dumps({"kernel_name": _kname}).encode()
+                        _req  = urllib.request.Request(
+                            f"{_QUOTA_API}/quotas/users/{_JHUB_USER}/enforce-kernel",
+                            data=_body,
+                            headers={
+                                "Authorization": f"Bearer {_QUOTA_TOK}",
+                                "Content-Type": "application/json",
+                            },
+                            method="POST",
+                        )
+                        loop = asyncio.get_event_loop()
+                        def _check():
+                            try:
+                                urllib.request.urlopen(_req, timeout=5)
+                                _qlog.warning("enforce-kernel OK for %s kernel=%r", _JHUB_USER, _kname)
+                            except urllib.error.HTTPError as _e:
+                                if _e.code == 429:
+                                    _msg = _e.read().decode()
+                                    _qlog.warning("enforce-kernel DENIED for %s: %s", _JHUB_USER, _msg)
+                                    raise RuntimeError(_msg)
+                                # Non-429 (auth error, network): fail open
+                                _qlog.warning("enforce-kernel non-429 error %s for %s — failing open",
+                                              _e.code, _JHUB_USER)
+                            except Exception as _ex:
+                                _qlog.warning("enforce-kernel unreachable for %s — failing open: %s",
+                                              _JHUB_USER, _ex)
+                        try:
+                            await loop.run_in_executor(None, _check)
+                        except RuntimeError as _e:
+                            raise Exception(str(_e))  # surfaces in JupyterLab as kernel start error
+                    else:
+                        _qlog.warning("enforce-kernel skipped: missing QUOTA_API_URL/TOKEN/USER")
+
+                    return await _orig_mapping_start(self, kernel_id=kernel_id, path=path, **kwargs)
+
+                GatewayMappingKernelManager.start_kernel = _quota_checked_start_kernel
+                _qlog.warning("GatewayMappingKernelManager.start_kernel patched for quota enforcement")
+
+            except Exception as _patch_err:
+                _qlog.error("Failed to patch GatewayMappingKernelManager: %s", _patch_err)
 
     ingress:
       enabled: false
