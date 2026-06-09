@@ -1,10 +1,21 @@
 
-
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: enterprise-gateway
+  annotations:
+    meta.helm.sh/release-name: enterprise-gateway
+    meta.helm.sh/release-namespace: enterprise-gateway
+  labels:
+    app: enterprise-gateway
+    app.kubernetes.io/managed-by: Helm
+    chart: enterprise-gateway-3.2.3_63291518072a
+    component: enterprise-gateway
+    helm.toolkit.fluxcd.io/name: enterprise-gateway
+    helm.toolkit.fluxcd.io/namespace: enterprise-gateway
+    heritage: Helm
+    release: enterprise-gateway
   name: enterprise-gateway
+  namespace: enterprise-gateway
 spec:
   ports:
   - name: http
@@ -17,11 +28,30 @@ spec:
     port: 8877
     protocol: TCP
     targetPort: 8877
+  selector:
+    gateway-selector: enterprise-gateway
   type: NodePort
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: jhub
+    meta.helm.sh/release-namespace: jhub-ns
+  labels:
+    app: jupyterhub
+    app.kubernetes.io/component: proxy-public
+    app.kubernetes.io/instance: jhub
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: jupyterhub
+    chart: jupyterhub-4.3.3
+    component: proxy-public
+    helm.sh/chart: jupyterhub-4.3.3
+    helm.toolkit.fluxcd.io/name: jupyterhub
+    helm.toolkit.fluxcd.io/namespace: jhub-ns
+    heritage: Helm
+    release: jhub
   name: proxy-public
   namespace: jhub-ns
 spec:
@@ -31,11 +61,16 @@ spec:
     port: 80
     protocol: TCP
     targetPort: http
+  selector:
+    app: jupyterhub
+    component: proxy
+    release: jhub
   type: NodePort
+
 ---
 apiVersion: v1
 kind: Service
-metadata:
+metadata:    
   name: keycloak
   namespace: keycloak
 spec:
@@ -44,11 +79,27 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
+  selector:
+    app: keycloak
+  sessionAffinity: None
   type: NodePort
----  
+  
+---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: hami
+    meta.helm.sh/release-namespace: kube-system
+  labels:
+    app.kubernetes.io/component: hami-device-plugin
+    app.kubernetes.io/instance: hami
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hami
+    app.kubernetes.io/version: 2.9.0
+    helm.sh/chart: hami-2.9.0
+    helm.toolkit.fluxcd.io/name: hami
+    helm.toolkit.fluxcd.io/namespace: kube-system
   name: hami-device-plugin-monitor
   namespace: kube-system
 spec:
@@ -58,11 +109,28 @@ spec:
     port: 31992
     protocol: TCP
     targetPort: 9394
+  selector:
+    app.kubernetes.io/component: hami-device-plugin
+    app.kubernetes.io/instance: hami
+    app.kubernetes.io/name: hami
   type: NodePort
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: hami
+    meta.helm.sh/release-namespace: kube-system
+  labels:
+    app.kubernetes.io/component: hami-scheduler
+    app.kubernetes.io/instance: hami
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hami
+    app.kubernetes.io/version: 2.9.0
+    helm.sh/chart: hami-2.9.0
+    helm.toolkit.fluxcd.io/name: hami
+    helm.toolkit.fluxcd.io/namespace: kube-system
   name: hami-scheduler
   namespace: kube-system
 spec:
@@ -77,11 +145,28 @@ spec:
     port: 31993
     protocol: TCP
     targetPort: 9395
+  selector:
+    app.kubernetes.io/component: hami-scheduler
+    app.kubernetes.io/instance: hami
+    app.kubernetes.io/name: hami
+    hami.io/scheduler-role: leader
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: hami-webui
+    meta.helm.sh/release-namespace: kube-system
+  labels:
+    app.kubernetes.io/component: hami-webui
+    app.kubernetes.io/instance: hami-webui
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hami-webui
+    app.kubernetes.io/version: 1.2.0
+    helm.sh/chart: hami-webui-1.2.0
+    helm.toolkit.fluxcd.io/name: hami-webui
+    helm.toolkit.fluxcd.io/namespace: kube-system
   name: hami-webui
   namespace: kube-system
 spec:
@@ -96,11 +181,26 @@ spec:
     port: 8000
     protocol: TCP
     targetPort: metrics
+  selector:
+    app.kubernetes.io/component: hami-webui
+    app.kubernetes.io/instance: hami-webui
+    app.kubernetes.io/name: hami-webui
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: prometheus
+    meta.helm.sh/release-namespace: monitoring
+  labels:
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/version: 13.0.1-security-01
+    helm.sh/chart: grafana-12.4.2
+    helm.toolkit.fluxcd.io/name: prometheus
+    helm.toolkit.fluxcd.io/namespace: monitoring
   name: prometheus-grafana
   namespace: monitoring
 spec:
@@ -110,11 +210,29 @@ spec:
     port: 80
     protocol: TCP
     targetPort: grafana
+  selector:
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/name: grafana
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: prometheus
+    meta.helm.sh/release-namespace: monitoring
+  labels:
+    app: kube-prometheus-stack-alertmanager
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 86.2.0
+    chart: kube-prometheus-stack-86.2.0
+    helm.toolkit.fluxcd.io/name: prometheus
+    helm.toolkit.fluxcd.io/namespace: monitoring
+    heritage: Helm
+    release: prometheus
+    self-monitor: "true"
   name: prometheus-kube-prometheus-alertmanager
   namespace: monitoring
 spec:
@@ -130,11 +248,28 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: reloader-web
+  selector:
+    alertmanager: prometheus-kube-prometheus-alertmanager
+    app.kubernetes.io/name: alertmanager
   type: NodePort
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    meta.helm.sh/release-name: prometheus
+    meta.helm.sh/release-namespace: monitoring
+  labels:
+    app: kube-prometheus-stack-prometheus
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 86.2.0
+    chart: kube-prometheus-stack-86.2.0
+    helm.toolkit.fluxcd.io/name: prometheus
+    helm.toolkit.fluxcd.io/namespace: monitoring
+    heritage: Helm
+    release: prometheus
   name: prometheus-kube-prometheus-prometheus
   namespace: monitoring
 spec:
@@ -150,4 +285,7 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: reloader-web
+  selector:
+    app.kubernetes.io/name: prometheus
+    operator.prometheus.io/name: prometheus-kube-prometheus-prometheus
   type: NodePort
