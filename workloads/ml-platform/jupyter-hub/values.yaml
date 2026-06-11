@@ -50,7 +50,6 @@ data:
           # Use the external IP for the browser redirect
           authorize_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/auth"
 
-
           # ── Token claims ─────────────────────────────────────────
           username_claim: "preferred_username"
           # userdata_params:
@@ -82,7 +81,7 @@ data:
           admin_users:
             - admin
             - adminuser2
-        #custom pre_spawn_hook to call quota API and set allowed kernels per-user
+          #custom pre_spawn_hook to call quota API and set allowed kernels per-user
 
       extraEnv:
         # For local dev: use the node IP where fastapi dev is running
@@ -149,6 +148,7 @@ data:
           _portal = _os.environ.get("QUOTA_PORTAL_URL", "").strip()
           if _portal:
               c.OAuthenticator.logout_redirect_url = _portal.rstrip("/") + "/logout"
+
         loadRoles: |
           c.JupyterHub.load_roles = [
               {
@@ -244,10 +244,12 @@ data:
                           request_timeout=5.0,
                       )
                       resp = await client.fetch(req)
-                      all_profiles = json.loads(resp.body)   # dict: slug → {display_name, kubespawner_override, …}
+                      all_profiles = json.loads(resp.body)   # dict: slug → {display_name, kubespawner_override, gpu_fraction, …}
                       # Normalise to list shape expected below
                       profiles = [
-                          {"slug": s, "kubespawner_override": v["kubespawner_override"]}
+                          {"slug": s, "kubespawner_override": v["kubespawner_override"],
+                          "display_name": v.get("display_name", s),
+                          "gpu_fraction": v.get("gpu_fraction", 0.0)}
                           for s, v in all_profiles.items()
                       ]
                       _log.info("admin %s: loaded %d profiles from catalogue", username, len(profiles))
@@ -280,12 +282,29 @@ data:
                       None,
                   )
                   if selected:
-                      gw_name = (
-                          selected.get("kubespawner_override", {})
-                                  .get("environment", {})
-                                  .get("JUPYTER_GATEWAY_KERNEL_NAME", "")
-                      )
+                      kso_env = selected.get("kubespawner_override", {}).get("environment", {})
+                      gw_name = kso_env.get("JUPYTER_GATEWAY_KERNEL_NAME", "")
                       kernels = [gw_name] if gw_name else [_FALLBACK_KERNEL]
+                      # Forward KERNEL_* vars from KSO (anything not computed below).
+                      for _k, _v in kso_env.items():
+                          if _k.startswith("KERNEL_"):
+                              spawner.environment[_k] = str(_v)
+                      # Override GPU vars computed directly from gpu_fraction so that
+                      # stale or missing KSO environment values never silently revert
+                      # the allocation back to the EG tier's hardcoded 25% default.
+                      _gf = selected.get("gpu_fraction") or 0.0
+                      if _gf > 0:
+                          _pct = str(max(1, round(_gf * 100)))
+                          spawner.environment["KERNEL_GPU_MEM_PERCENTAGE"] = _pct
+                          spawner.environment["KERNEL_GPU_CORES"] = _pct
+                          # Framework from EG kernel prefix (tf- / pytorch-)
+                          _fw = "tensorflow" if gw_name.startswith("tf-") else \
+                                  "pytorch"    if gw_name.startswith("pytorch-") else "all"
+                          spawner.environment["KERNEL_FRAMEWORK"] = _fw
+                      # Display name from profile display_name field
+                      _dname = selected.get("display_name", "")
+                      if _dname:
+                          spawner.environment["KERNEL_DISPLAY_NAME"] = _dname
                   else:
                       # slug not found in this user's profiles — deny gracefully
                       _log.warning(
@@ -372,18 +391,6 @@ data:
     singleuser:
       defaultUrl: "/lab"
       profileList: []
-      networkPolicy:
-        egress:
-          # Allow singleuser pods to reach Enterprise Gateway for kernel management
-          - ports:
-              - port: 8888
-                protocol: TCP
-              - port: 8877
-                protocol: TCP
-            to:
-              - namespaceSelector:
-                  matchLabels:
-                    kubernetes.io/metadata.name: enterprise-gateway
       extraEnv:
         JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
         JUPYTER_GATEWAY_WS_URL: "ws://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
@@ -392,7 +399,7 @@ data:
         JUPYTER_GATEWAY_WS_PING_INTERVAL: "30"
         KERNEL_SERVICE_ACCOUNT_NAME: "enterprise-gateway-sa"
         QUOTA_API_URL: "http://10.244.0.1:9000"      # ← add
-        QUOTA_API_TOKEN: "testtoken123"  
+        QUOTA_API_TOKEN: "testtoken123"
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:
         name: vitu1/jupyterhub-singleuser
@@ -403,8 +410,6 @@ data:
 
       # custom configs
       extraFiles:
-
-
         kernel-filter-config:
           mountPath: /etc/jupyter/jupyter_server_config.py
           stringData: |
@@ -423,7 +428,14 @@ data:
 
                     async def _filtered_get_all_specs(self):
                         all_specs = await _orig(self)
-                        return {name: spec for name, spec in all_specs.items() if name in _wl}
+                        filtered = {name: spec for name, spec in all_specs.items() if name in _wl}
+                        _dname = os.environ.get("KERNEL_DISPLAY_NAME", "")
+                        if _dname:
+                            filtered = {
+                                name: {**spec, "spec": {**spec.get("spec", {}), "display_name": _dname}}
+                                for name, spec in filtered.items()
+                            }
+                        return filtered
 
                     GatewayKernelSpecManager.get_all_specs = _filtered_get_all_specs
                 except Exception:
@@ -435,7 +447,7 @@ data:
             # manages an already-running kernel connection and is NOT called on
             # kernel creation — patching it was a no-op.
             import asyncio, json as _json, logging as _logging, \
-                  urllib.request, urllib.error
+                urllib.request, urllib.error
 
             _qlog       = _logging.getLogger("quota_kernel_hook")
             _QUOTA_API  = os.environ.get("QUOTA_API_URL", "")
@@ -475,10 +487,10 @@ data:
                                     raise RuntimeError(_msg)
                                 # Non-429 (auth error, network): fail open
                                 _qlog.warning("enforce-kernel non-429 error %s for %s — failing open",
-                                              _e.code, _JHUB_USER)
+                                            _e.code, _JHUB_USER)
                             except Exception as _ex:
                                 _qlog.warning("enforce-kernel unreachable for %s — failing open: %s",
-                                              _JHUB_USER, _ex)
+                                            _JHUB_USER, _ex)
                         try:
                             await loop.run_in_executor(None, _check)
                         except RuntimeError as _e:
