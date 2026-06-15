@@ -19,3 +19,63 @@ kpt live init post-install-config
 kpt live apply post-install-config --reconcile-timeout=2m --output=table
 ```
 Details: https://kpt.dev/reference/cli/live/
+
+
+
+```bash
+openssl req \
+  -subj '/CN=keycloak.default.apps.green.demoshift.com/O=Test demoshift./C=KR' \
+  -newkey rsa:2048 \
+  -nodes \
+  -keyout key.pem \
+  -x509 \
+  -days 365 \
+  -out certificate.pem
+
+ # use this for node ip
+ cat <<'EOF' > openssl-ip.cnf
+[req]
+default_bits       = 2048
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+x509_extensions    = v3_req
+
+[dn]
+CN = 18.143.103.238
+O  = Test demoshift
+C  = KR
+
+[v3_req]
+subjectAltName = @alt_names
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+
+[alt_names]
+IP.1 = 18.143.103.238
+EOF
+openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout key.pem \
+  -out certificate.pem \
+  -config openssl-ip.cnf
+
+
+kubectl create secret tls example-tls-secret --cert certificate.pem --key key.pem
+kubectl create secret generic keycloak-db-secret \
+  --from-literal=username=testuser \
+  --from-literal=password=testpassword
+```
+
+get temporary admin login details
+```bash
+kubectl get secret example-kc-initial-admin -o jsonpath='{.data.username}' | base64 --decode
+kubectl get secret example-kc-initial-admin -o jsonpath='{.data.password}' | base64 --decode
+```
+
+
+
+#### Guides used
+1. [wooyoung85- Kubeflow Dex and Keycloak Integration Guide](https://wooyoung85.tistory.com/99)
+2. [hklog - keycloak-kubeflow-dex](https://velog.io/@hklog/keycloak-kubeflow-dex)
+3. [iamestelleyu - Using Keycloak for Kubeflow (instead of dex)](https://medium.com/@iamestelleyu/dex-is-the-defalut-authentication-application-of-kubeflow-and-there-is-a-option-using-both-dex-and-2cea08ca76f6)
