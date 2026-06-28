@@ -114,7 +114,7 @@ spec:
       annotations: {}
 
     kip:
-      enabled: true
+      enabled: false
       serviceAccountName: kernel-image-puller-sa
       serviceName: enterprise-gateway
       server:
