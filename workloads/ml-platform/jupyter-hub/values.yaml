@@ -402,7 +402,7 @@ data:
         QUOTA_API_TOKEN: "testtoken123"
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:
-        name: vitu1/jupyterhub-singleuser
+        name: docker.io/vitu1/jupyterhub-singleuser
         tag: "eg-compat-oidc-v2"
         # pullPolicy: Always
       storage:

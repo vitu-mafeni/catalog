@@ -37,7 +37,7 @@ spec:
       annotations: {}
       secrets: []
 
-    image: vitu1/enterprise-gateway:3.2.3
+    image: docker.io/vitu1/enterprise-gateway:3.2.3
     imagePullPolicy: IfNotPresent
 
     service:
@@ -94,7 +94,7 @@ spec:
       defaultKernelName: python3
 
     kernelspecs:
-      image: vitu1/enterprise-gateway-kernelspecs:1.0.3
+      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.0.3
       imagePullPolicy: Always
 
     nfs:
