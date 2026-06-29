@@ -1,25 +1,31 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: hami
+  name: hami-dra
   namespace: kube-system
 spec:
   interval: 5m
-  releaseName: hami
+  releaseName: hami-dra
   chart:
     spec:
-      chart: hami
+      chart: hami-dra
       sourceRef:
         kind: HelmRepository
-        name: hami
+        name: hami-dra
         namespace: kube-system
 
   values:
-    scheduler:
-      kubeScheduler:
-        # ⚠️ MUST match your Kubernetes version exactly
-        # replace this with your actual version
-        imageTag: v1.34.0
+    # scheduler:
+    #   kubeScheduler:
+    #     # ⚠️ MUST match your Kubernetes version exactly
+    #     # replace this with your actual version
+    #     imageTag: v1.34.0
+    monitor:
+      enabled: true
+      service:
+        type: NodePort
+        nodePort:
+          metrics: 31995
 
   install:
     createNamespace: true
