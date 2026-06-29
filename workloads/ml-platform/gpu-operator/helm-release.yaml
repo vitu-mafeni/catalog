@@ -4,16 +4,150 @@ metadata:
   name: gpu-operator
   namespace: gpu-operator
 spec:
-  interval: 1m
-  releaseName: gpu-operator
+  interval: 10m
+  timeout: 30m
+
   chart:
     spec:
       chart: gpu-operator
+      version: "v26.3.3"
       sourceRef:
         kind: HelmRepository
         name: nvidia
         namespace: gpu-operator
-  valuesFrom:
-  - kind: ConfigMap
-    name: gpu-operator-values
-    valuesKey: values.yaml
+
+  install:
+    createNamespace: true
+    crds: CreateReplace
+    remediation:
+      retries: 3
+
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+
+  values:
+    dcgm:
+      enabled: false
+
+    dcgmExporter:
+      enabled: true
+
+      hostPID: false
+      hostNetwork: false
+
+      env:
+        - name: DCGM_EXPORTER_INTERVAL
+          value: "5000"
+        - name: DCGM_EXPORTER_KUBERNETES
+          value: "true"
+        - name: DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE
+          value: "uid"
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+
+      enablePodLabels: true
+      enablePodUID: true
+
+      serviceMonitor:
+        enabled: true
+        interval: 15s
+        honorLabels: false
+
+        additionalLabels:
+          release: prometheus
+
+        relabelings:
+          - source_labels:
+              - __meta_kubernetes_endpoint_node_name
+            regex: (.*)
+            target_label: kubernetes_node
+            replacement: $1
+            action: replace
+
+          - source_labels:
+              - __meta_kubernetes_pod_node_name
+            regex: (.*)
+            target_label: kubernetes_node
+            replacement: $1
+            action: replace
+
+      config:
+        create: true
+        name: dcgm-counters
+        data: |-
+          DCGM_FI_DEV_GPU_UTIL, gauge, GPU utilization (%)
+          DCGM_FI_DEV_MEM_COPY_UTIL, gauge, Memory bandwidth utilization (%)
+          DCGM_FI_DEV_ENC_UTIL, gauge, Encoder utilization (%)
+          DCGM_FI_DEV_DEC_UTIL, gauge, Decoder utilization (%)
+          DCGM_FI_DEV_FB_FREE, gauge, Framebuffer free memory (MiB)
+          DCGM_FI_DEV_FB_USED, gauge, Framebuffer used memory (MiB)
+          DCGM_FI_DEV_FB_TOTAL, gauge, Framebuffer total memory (MiB)
+          DCGM_FI_DEV_GPU_TEMP, gauge, GPU temperature (C)
+          DCGM_FI_DEV_MEMORY_TEMP, gauge, Memory temperature (C)
+          DCGM_FI_DEV_POWER_USAGE, gauge, Power usage (W)
+          DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION, counter, Energy consumed
+          DCGM_FI_DEV_PCIE_TX_THROUGHPUT, counter, PCIe TX
+          DCGM_FI_DEV_PCIE_RX_THROUGHPUT, counter, PCIe RX
+          DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL, counter, NVLINK bandwidth
+          DCGM_FI_DEV_SM_CLOCK, gauge, SM clock
+          DCGM_FI_DEV_MEM_CLOCK, gauge, Memory clock
+          DCGM_FI_DEV_CLOCK_THROTTLE_REASONS, gauge, Clock throttle reasons
+          DCGM_FI_DEV_ECC_SBE_VOL_TOTAL, counter, ECC SBE
+          DCGM_FI_DEV_ECC_DBE_VOL_TOTAL, counter, ECC DBE
+          DCGM_FI_DEV_XID_ERRORS, gauge, XID errors
+          DCGM_FI_PROF_GR_ENGINE_ACTIVE, gauge, Graphics engine activity
+          DCGM_FI_PROF_SM_ACTIVE, gauge, SM active
+          DCGM_FI_PROF_SM_OCCUPANCY, gauge, SM occupancy
+          DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, Tensor activity
+          DCGM_FI_PROF_PIPE_FP64_ACTIVE, gauge, FP64 activity
+          DCGM_FI_PROF_PIPE_FP32_ACTIVE, gauge, FP32 activity
+          DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, FP16 activity
+          DCGM_FI_PROF_DRAM_ACTIVE, gauge, DRAM activity
+          DCGM_FI_PROF_PCIE_TX_BYTES, counter, PCIe TX bytes
+          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes
+
+          # -----------------------------
+          # Additional recommended metrics
+          # -----------------------------
+
+          DCGM_FI_DEV_BAR1_TOTAL, gauge, BAR1 total memory
+          DCGM_FI_DEV_BAR1_USED, gauge, BAR1 used memory
+          DCGM_FI_DEV_BAR1_FREE, gauge, BAR1 free memory
+
+          DCGM_FI_DEV_PCIE_REPLAY_COUNTER, counter, PCIe replay errors
+          DCGM_FI_DEV_PCIE_MAX_LINK_GEN, gauge, PCIe max link generation
+          DCGM_FI_DEV_PCIE_MAX_LINK_WIDTH, gauge, PCIe max link width
+
+          DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL, counter, NVLink FLIT CRC errors
+          DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL, counter, NVLink data CRC errors
+          DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL, counter, NVLink replay errors
+          DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL, counter, NVLink recovery events
+
+          DCGM_FI_DEV_RETIRED_SBE, counter, Retired single-bit ECC pages
+          DCGM_FI_DEV_RETIRED_DBE, counter, Retired double-bit ECC pages
+          DCGM_FI_DEV_RETIRED_PENDING, gauge, Pending retired pages
+
+          DCGM_FI_DEV_COMPUTE_PIDS, gauge, Active compute processes on GPU
+          DCGM_FI_DEV_GRAPHICS_PIDS, gauge, Active graphics processes on GPU
+
+          DCGM_FI_DEV_POWER_VIOLATION, gauge, Power limit violations
+          DCGM_FI_DEV_POWER_MGMT_LIMIT, gauge, Power management limit
+          DCGM_FI_DEV_ENFORCED_POWER_LIMIT, gauge, Enforced power cap
+
+          DCGM_FI_DEV_SLOWDOWN_TEMP, gauge, Temperature slowdown threshold
+          DCGM_FI_DEV_SHUTDOWN_TEMP, gauge, Shutdown temperature threshold
+
+          DCGM_FI_DEV_MAX_SM_CLOCK, gauge, Max SM clock
+          DCGM_FI_DEV_MAX_MEM_CLOCK, gauge, Max memory clock
+
+          DCGM_FI_DEV_MIG_MODE, gauge, MIG mode state
+          DCGM_FI_DEV_MIG_MAX_SLICES, gauge, MIG max slices
+          DCGM_FI_DEV_MIG_ATTRIBUTES, gauge, MIG attributes
