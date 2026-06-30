@@ -1,13 +1,17 @@
 apiVersion: v1
 kind: Namespace
-metadata:
+metadata: # kpt-merge: /jhub-ns
   name: jhub-ns
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|jhub-ns'
 ---
 apiVersion: v1
 kind: ConfigMap
-metadata:
+metadata: # kpt-merge: jhub-ns/jhub-values
   name: jhub-values
   namespace: jhub-ns
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|ConfigMap|jhub-ns|jhub-values'
 data:
   values.yaml: |
     proxy:
@@ -392,6 +396,10 @@ data:
       defaultUrl: "/lab"
       profileList: []
       extraEnv:
+        CHECKPOINT_NAMESPACE: "jhub-ns"
+        KERNEL_USERNAME: "k"
+        CHECKPOINT_API_URL: 'http://10.244.0.1:9000' #change here
+
         JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
         JUPYTER_GATEWAY_WS_URL: "ws://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
         JUPYTER_GATEWAY_REQUEST_TIMEOUT: "300"
@@ -403,8 +411,8 @@ data:
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:
         name: docker.io/vitu1/jupyterhub-singleuser
-        tag: "eg-compat-oidc-v2"
-        # pullPolicy: Always
+        tag: "checkpoint-restore-v1"
+        pullPolicy: IfNotPresent
       storage:
         type: dynamic
 
