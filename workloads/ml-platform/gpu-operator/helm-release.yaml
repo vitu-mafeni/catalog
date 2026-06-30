@@ -28,42 +28,76 @@ spec:
       retries: 3
 
   values:
-    dcgm:
+    ccManager:
+      defaultMode: "off"
       enabled: false
+      env:
+      - name: CC_CAPABLE_DEVICE_IDS
+        value: 0x2339,0x2331,0x2330,0x2324,0x2322,0x233d
+      image: k8s-cc-manager
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      resources: {}
+      version: v0.1.1
+
+    cdi:
+      default: true
+      enabled: true
+
+    daemonsets:
+      annotations: {}
+      labels: {}
+      priorityClassName: system-node-critical
+      rollingUpdate:
+        maxUnavailable: "1"
+      tolerations:
+      - effect: NoSchedule
+        key: nvidia.com/gpu
+        operator: Exists
+      updateStrategy: RollingUpdate
+
+    dcgm:
+      args: []
+      enabled: false
+      env: []
+      image: dcgm
+      imagePullPolicy: IfNotPresent
+      repository: nvcr.io/nvidia/cloud-native
+      resources: {}
+      version: 4.3.1-1-ubuntu22.04
 
     dcgmExporter:
       enabled: true
-
+      env:
+      - name: KUBERNETES_ENABLE_DRA
+        value: "true"
+      - name: DCGM_EXPORTER_INTERVAL
+        value: "5000"
+      - name: DCGM_EXPORTER_KUBERNETES
+        value: "true"
+      - name: DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE
+        value: "uid"
       hostPID: false
       hostNetwork: false
-
-      env:
-        - name: DCGM_EXPORTER_INTERVAL
-          value: "5000"
-        - name: DCGM_EXPORTER_KUBERNETES
-          value: "true"
-        - name: DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE
-          value: "uid"
-
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-
+      image: dcgm-exporter
+      imagePullPolicy: IfNotPresent
+      kubernetes:
+        enablePodLabels: true
+        rbac:
+          create: true
+      repository: nvcr.io/nvidia/k8s
+      resources: {}
+      service:
+        internalTrafficPolicy: Cluster
       enablePodLabels: true
       enablePodUID: true
-
       serviceMonitor:
         enabled: true
         interval: 15s
         honorLabels: false
-
         additionalLabels:
           release: prometheus
-
         relabelings:
           - source_labels:
               - __meta_kubernetes_endpoint_node_name
@@ -71,14 +105,13 @@ spec:
             target_label: kubernetes_node
             replacement: $1
             action: replace
-
           - source_labels:
               - __meta_kubernetes_pod_node_name
             regex: (.*)
             target_label: kubernetes_node
             replacement: $1
             action: replace
-
+      version: 4.3.1-4.4.0-ubuntu22.04
       config:
         create: true
         name: dcgm-counters
@@ -112,42 +145,549 @@ spec:
           DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, FP16 activity
           DCGM_FI_PROF_DRAM_ACTIVE, gauge, DRAM activity
           DCGM_FI_PROF_PCIE_TX_BYTES, counter, PCIe TX bytes
-          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes
+          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes          
 
-          # -----------------------------
-          # Additional recommended metrics
-          # -----------------------------
 
-          DCGM_FI_DEV_BAR1_TOTAL, gauge, BAR1 total memory
-          DCGM_FI_DEV_BAR1_USED, gauge, BAR1 used memory
-          DCGM_FI_DEV_BAR1_FREE, gauge, BAR1 free memory
 
-          DCGM_FI_DEV_PCIE_REPLAY_COUNTER, counter, PCIe replay errors
-          DCGM_FI_DEV_PCIE_MAX_LINK_GEN, gauge, PCIe max link generation
-          DCGM_FI_DEV_PCIE_MAX_LINK_WIDTH, gauge, PCIe max link width
+    devicePlugin:
+      args: []
+      config:
+        create: false
+        data: {}
+        default: ""
+        name: ""
+      enabled: false
+      env: []
+      image: k8s-device-plugin
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      mps:
+        root: /run/nvidia/mps
+      repository: nvcr.io/nvidia
+      resources: {}
+      version: v0.17.4
 
-          DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL, counter, NVLink FLIT CRC errors
-          DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL, counter, NVLink data CRC errors
-          DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL, counter, NVLink replay errors
-          DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL, counter, NVLink recovery events
+    driver:
+      certConfig:
+        name: ""
+      enabled: true
+      env: []
+      image: driver
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      kernelModuleConfig:
+        name: ""
+      kernelModuleType: auto
+      licensingConfig:
+        configMapName: ""
+        nlsEnabled: true
+      manager:
+        env: []
+        image: k8s-driver-manager
+        imagePullPolicy: IfNotPresent
+        repository: nvcr.io/nvidia/cloud-native
+        version: v0.8.1
+      nvidiaDriverCRD:
+        deployDefaultCR: true
+        driverType: gpu
+        enabled: false
+        nodeSelector: {}
+      rdma:
+        enabled: false
+        useHostMofed: false
+      repoConfig:
+        configMapName: ""
+      repository: nvcr.io/nvidia
+      resources: {}
+      startupProbe:
+        failureThreshold: 120
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 60
+      upgradePolicy:
+        autoUpgrade: true
+        drain:
+          deleteEmptyDir: false
+          enable: false
+          force: false
+          podSelector: ""
+          timeoutSeconds: 300
+        gpuPodDeletion:
+          deleteEmptyDir: false
+          force: false
+          timeoutSeconds: 300
+        maxParallelUpgrades: 1
+        maxUnavailable: 25%
+        waitForCompletion:
+          podSelector: ""
+          timeoutSeconds: 0
+      usePrecompiled: false
+      version: 580.82.07
+      virtualTopology:
+        config: ""
 
-          DCGM_FI_DEV_RETIRED_SBE, counter, Retired single-bit ECC pages
-          DCGM_FI_DEV_RETIRED_DBE, counter, Retired double-bit ECC pages
-          DCGM_FI_DEV_RETIRED_PENDING, gauge, Pending retired pages
+    gdrcopy:
+      args: []
+      enabled: false
+      env: []
+      image: gdrdrv
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      version: v2.5.1
 
-          DCGM_FI_DEV_COMPUTE_PIDS, gauge, Active compute processes on GPU
-          DCGM_FI_DEV_GRAPHICS_PIDS, gauge, Active graphics processes on GPU
+    gds:
+      args: []
+      enabled: false
+      env: []
+      image: nvidia-fs
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      version: 2.20.5
 
-          DCGM_FI_DEV_POWER_VIOLATION, gauge, Power limit violations
-          DCGM_FI_DEV_POWER_MGMT_LIMIT, gauge, Power management limit
-          DCGM_FI_DEV_ENFORCED_POWER_LIMIT, gauge, Enforced power cap
+    gfd:
+      enabled: true
+      env: []
+      image: k8s-device-plugin
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia
+      resources: {}
+      version: v0.17.4
 
-          DCGM_FI_DEV_SLOWDOWN_TEMP, gauge, Temperature slowdown threshold
-          DCGM_FI_DEV_SHUTDOWN_TEMP, gauge, Shutdown temperature threshold
+    hostPaths:
+      driverInstallDir: /run/nvidia/driver
+      rootFS: /
 
-          DCGM_FI_DEV_MAX_SM_CLOCK, gauge, Max SM clock
-          DCGM_FI_DEV_MAX_MEM_CLOCK, gauge, Max memory clock
+    kataManager:
+      config:
+        artifactsDir: /opt/nvidia-gpu-operator/artifacts/runtimeclasses
+        runtimeClasses:
+        - artifacts:
+            pullSecret: ""
+            url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.54.03
+          name: kata-nvidia-gpu
+          nodeSelector: {}
+        - artifacts:
+            pullSecret: ""
+            url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.86.10-snp
+          name: kata-nvidia-gpu-snp
+          nodeSelector:
+            nvidia.com/cc.capable: "true"
+      enabled: false
+      env: []
+      image: k8s-kata-manager
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      resources: {}
+      version: v0.2.3
 
-          DCGM_FI_DEV_MIG_MODE, gauge, MIG mode state
-          DCGM_FI_DEV_MIG_MAX_SLICES, gauge, MIG max slices
-          DCGM_FI_DEV_MIG_ATTRIBUTES, gauge, MIG attributes
+    mig:
+      strategy: single
+
+    migManager:
+      config:
+        create: false
+        data: {}
+        default: all-disabled
+        name: ""
+      enabled: true
+      env: []
+      gpuClientsConfig:
+        name: ""
+      image: k8s-mig-manager
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      resources: {}
+      version: v0.12.3-ubuntu20.04
+
+    nfd:
+      enabled: true
+      nodefeaturerules: false
+
+    node-feature-discovery:
+      featureGates:
+        NodeFeatureGroupAPI: false
+      fullnameOverride: ""
+      gc:
+        affinity: {}
+        annotations: {}
+        deploymentAnnotations: {}
+        enable: true
+        extraArgs: []
+        extraEnvs: []
+        hostNetwork: false
+        interval: 1h
+        metricsPort: 8081
+        nodeSelector: {}
+        podSecurityContext: {}
+        rbac:
+          create: true
+        replicaCount: 1
+        resources:
+          limits:
+            memory: 1Gi
+          requests:
+            cpu: 10m
+            memory: 128Mi
+        revisionHistoryLimit: null
+        serviceAccount:
+          annotations: {}
+          create: false
+          name: node-feature-discovery
+        tolerations: []
+      global: {}
+      image:
+        pullPolicy: IfNotPresent
+        repository: registry.k8s.io/nfd/node-feature-discovery
+      imagePullSecrets: []
+      master:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: node-role.kubernetes.io/master
+                  operator: In
+                  values:
+                  - ""
+              weight: 1
+            - preference:
+                matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: In
+                  values:
+                  - ""
+              weight: 1
+        annotations: {}
+        config:
+          extraLabelNs:
+          - nvidia.com
+        denyLabelNs: []
+        deploymentAnnotations: {}
+        enable: true
+        enableTaints: false
+        extraArgs: []
+        extraEnvs: []
+        extraLabelNs: []
+        featureApi: null
+        featureRulesController: null
+        healthPort: 8082
+        hostNetwork: false
+        instance: null
+        livenessProbe:
+          grpc:
+            port: 8082
+        metricsPort: 8081
+        nfdApiParallelism: null
+        nodeSelector: {}
+        podSecurityContext: {}
+        rbac:
+          create: true
+        readinessProbe:
+          failureThreshold: 10
+          grpc:
+            port: 8082
+        replicaCount: 1
+        resources:
+          limits:
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        resyncPeriod: null
+        revisionHistoryLimit: null
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        serviceAccount:
+          annotations: {}
+          create: true
+          name: node-feature-discovery
+        startupProbe:
+          failureThreshold: 30
+          grpc:
+            port: 8082
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal
+          value: ""
+      nameOverride: ""
+      namespaceOverride: ""
+      priorityClassName: system-node-critical
+      prometheus:
+        enable: false
+        labels: {}
+        scrapeInterval: 10s
+      topologyUpdater:
+        affinity: {}
+        annotations: {}
+        config: null
+        createCRDs: false
+        daemonsetAnnotations: {}
+        enable: false
+        extraArgs: []
+        extraEnvs: []
+        healthPort: 8082
+        hostNetwork: false
+        kubeletConfigPath: null
+        kubeletPodResourcesSockPath: null
+        kubeletStateDir: /var/lib/kubelet
+        livenessProbe:
+          grpc:
+            port: 8082
+          initialDelaySeconds: 10
+        metricsPort: 8081
+        nodeSelector: {}
+        podSecurityContext: {}
+        podSetFingerprint: true
+        rbac:
+          create: true
+        readinessProbe:
+          failureThreshold: 10
+          grpc:
+            port: 8082
+          initialDelaySeconds: 5
+        resources:
+          limits:
+            memory: 60Mi
+          requests:
+            cpu: 50m
+            memory: 40Mi
+        revisionHistoryLimit: null
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+        serviceAccount:
+          annotations: {}
+          create: true
+          name: null
+        tolerations: []
+        updateInterval: 60s
+        watchNamespace: '*'
+      worker:
+        affinity: {}
+        annotations: {}
+        config:
+          sources:
+            pci:
+              deviceClassWhitelist:
+              - "02"
+              - "0200"
+              - "0207"
+              - "0300"
+              - "0302"
+              deviceLabelFields:
+              - vendor
+        daemonsetAnnotations: {}
+        enable: true
+        extraArgs: []
+        extraEnvs: []
+        healthPort: 8082
+        hostNetwork: false
+        livenessProbe:
+          grpc:
+            port: 8082
+          initialDelaySeconds: 10
+        metricsPort: 8081
+        mountUsrSrc: false
+        nodeSelector: {}
+        podSecurityContext: {}
+        priorityClassName: ""
+        rbac:
+          create: true
+        readinessProbe:
+          failureThreshold: 10
+          grpc:
+            port: 8082
+          initialDelaySeconds: 5
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        revisionHistoryLimit: null
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        serviceAccount:
+          annotations: {}
+          create: false
+          name: node-feature-discovery
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+
+    nodeStatusExporter:
+      enabled: false
+      image: gpu-operator-validator
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      resources: {}
+
+    operator:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: In
+                values:
+                - ""
+            weight: 1
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: In
+                values:
+                - ""
+            weight: 1
+      annotations:
+        openshift.io/scc: restricted-readonly
+      cleanupCRD: false
+      image: gpu-operator
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      initContainer:
+        image: cuda
+        imagePullPolicy: IfNotPresent
+        repository: nvcr.io/nvidia
+        version: 13.0.0-base-ubi9
+      logging:
+        develMode: false
+        level: info
+        timeEncoding: epoch
+      priorityClassName: system-node-critical
+      repository: nvcr.io/nvidia
+      resources:
+        limits:
+          cpu: 500m
+          memory: 350Mi
+        requests:
+          cpu: 200m
+          memory: 100Mi
+      runtimeClass: nvidia
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Equal
+        value: ""
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Equal
+        value: ""
+      upgradeCRD: true
+      use_ocp_driver_toolkit: false
+
+    platform:
+      openshift: false
+
+    psa:
+      enabled: false
+
+    sandboxDevicePlugin:
+      args: []
+      enabled: true
+      env: []
+      image: kubevirt-gpu-device-plugin
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia
+      resources: {}
+      version: v1.4.0
+
+    sandboxWorkloads:
+      defaultWorkload: container
+      enabled: false
+
+    toolkit:
+      enabled: true
+      env: []
+      image: container-toolkit
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      installDir: /usr/local/nvidia
+      repository: nvcr.io/nvidia/k8s
+      resources: {}
+      version: v1.17.8-ubuntu20.04
+
+    validator:
+      repository: nvcr.io/nvidia
+      image: gpu-operator
+      version: v26.3.3
+
+    vfioManager:
+      driverManager:
+        env: []
+        image: k8s-driver-manager
+        imagePullPolicy: IfNotPresent
+        repository: nvcr.io/nvidia/cloud-native
+        version: v0.8.1
+      enabled: true
+      env: []
+      image: cuda
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia
+      resources: {}
+      version: 13.0.0-base-ubi9
+
+    vgpuDeviceManager:
+      config:
+        default: default
+        name: ""
+      enabled: true
+      env: []
+      image: vgpu-device-manager
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: nvcr.io/nvidia/cloud-native
+      version: v0.4.0
+
+    vgpuManager:
+      driverManager:
+        env: []
+        image: k8s-driver-manager
+        imagePullPolicy: IfNotPresent
+        repository: nvcr.io/nvidia/cloud-native
+        version: v0.8.1
+      enabled: false
+      env: []
+      image: vgpu-manager
+      imagePullPolicy: IfNotPresent
+      imagePullSecrets: []
+      repository: ""
+      resources: {}
+      version: ""
