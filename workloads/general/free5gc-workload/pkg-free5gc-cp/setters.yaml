@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: setters
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  # Namespace
+  namespace: free5gc
+
+  # AMF N2 Interface (NGAP over Multus ipvlan on ens6 — core-n2 subnet)
+  amf-n2-ip: 192.168.10.200
+  amf-n2-subnet: "24"
+  amf-n2-gateway: 192.168.10.1
+  amf-n2-nad-master: ens6
+  amf-port: "38412"
+
+  # UPF interface IPs (separate subnets on edge worker)
+  upf-n4-ip: 192.168.11.202
+  upf-n3-ip: 192.168.12.201
+
+  # SMF N4 IP — assigned via Multus NAD on ens7 (core-n4 subnet 192.168.11.0/24)
+  smf-n4-ip: 192.168.11.176
+
+  # Worker node names for scheduling NF pods
+  core-worker-node: ip-192-168-1-176.ap-northeast-2.compute.internal
+  edge-worker-node: ip-192-168-1-57.ap-northeast-2.compute.internal
+
+  # Core services
+  nrf-service-name: nrf-service
+  nrf-uri: https://nrf-service:8000
+  mongodb-uri: mongodb://mongodb:27017
+
+  # PLMN / Cell identity
+  plmn-mcc: "001"
+  plmn-mnc: "01"
+  tac: "1"
+
+  # Slice & DNN
+  sst: "1"
+  sd: "010203"
+  dnn: internet
+
+  # UE IP pool
+  ue-subnet: 10.1.0.0/16
+  ue-dns: 8.8.8.8
+
+  # AMF identity
+  amf-id: cafe00
+
+  # Container images
+  image-nrf: free5gc/nrf:v3.4.3
+  image-udr: free5gc/udr:v3.4.3
+  image-udm: free5gc/udm:v3.4.3
+  image-ausf: free5gc/ausf:v3.4.3
+  image-amf: free5gc/amf:v3.4.3
+  image-smf: free5gc/smf:v3.4.3
+  image-pcf: free5gc/pcf:v3.4.3
+  image-nssf: free5gc/nssf:v3.4.3
+
+  # PVC storage class
+  storage-class: longhorn
