@@ -8,10 +8,11 @@ spec:
   releaseName: hami-dra
   chart:
     spec:
-      chart: hami-dra
+      chart: ./charts/hami-dra
+      reconcileStrategy: Revision
       sourceRef:
-        kind: HelmRepository
-        name: hami-dra
+        kind: GitRepository
+        name: hami-dra-chart
         namespace: kube-system
 
   values:

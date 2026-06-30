@@ -1,8 +1,10 @@
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
+kind: GitRepository
 metadata:
-  name: hami-dra
+  name: hami-dra-chart
   namespace: kube-system
 spec:
-  interval: 1m
-  url: https://project-hami.github.io/HAMi-DRA
+  interval: 5m
+  url: https://github.com/vitu-mafeni/HAMi-DRA
+  ref:
+    tag: hami-dra-0.2.1-fix1
