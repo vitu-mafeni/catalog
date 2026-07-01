@@ -1,8 +1,10 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
-metadata:
+metadata: # kpt-merge: enterprise-gateway/enterprise-gateway
   name: enterprise-gateway
   namespace: enterprise-gateway
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'helm.toolkit.fluxcd.io|HelmRelease|enterprise-gateway|enterprise-gateway'
 spec:
   interval: 10m
   timeout: 5m
@@ -56,6 +58,7 @@ spec:
       nodeSelector: {}
       extraEnv:
         EG_INHERITED_ENVS: "PATH"
+        EG_CLIENT_ENVS: "KERNEL_CHECKPOINT_NAME"
     logLevel: DEBUG
     mirrorWorkingDirs: false
     authToken: ""
