@@ -81,10 +81,13 @@ data:
           #   - gpu-power-users
           #   - researchers
 
-          # Admin users — can be Keycloak group or explicit list
-          admin_users:
-            - admin
-            - adminuser2
+          # Deliberately NO admin_users list here. JupyterHub's own admin flag
+          # (spawner.user.admin) grants access to the native /hub/admin panel
+          # and the admin_access proxy feature — both bypass the platform UI
+          # entirely, which is exactly what must not happen. Platform admin
+          # status lives only in quota-api's own RBAC (Keycloak platform-admin
+          # group → is_admin claim), and is forwarded into user_options by
+          # /me/spawn — never derived from a JupyterHub-native admin flag.
           #custom pre_spawn_hook to call quota API and set allowed kernels per-user
 
       extraEnv:
@@ -128,10 +131,15 @@ data:
           )
 
         adminAccess: |
-          # Allow JupyterHub admins to open any user's server directly.
-          # The admin authenticates as themselves via OAuth; admin_access=True
-          # lets them be proxied into the target user's server.
-          c.JupyterHub.admin_access = True
+          # Deliberately NOT setting c.JupyterHub.admin_access here. That
+          # traitlet proxies a JupyterHub-native admin user directly into
+          # another user's server through the Hub's own UI — bypassing the
+          # platform entirely. Admin "open a user's server" access is instead
+          # handled exclusively by quota-api's own token-minting endpoint
+          # (POST /workloads/admin/open-token), which mints a short-lived,
+          # scoped access token via the Hub API using quota-api's own service
+          # credentials — never a human JupyterHub admin session.
+          #
           # Keep admin hub sessions alive for 14 days so re-login is rare.
           c.JupyterHub.cookie_max_age_days = 14
           # Allow users to run more than one named server simultaneously.
@@ -230,12 +238,38 @@ data:
               # (portal passes it as user_options); empty for CPU/direct JH UI spawns
               kernel_slug = (spawner.user_options or {}).get("kernel_slug", "")
 
+              # ── 0. Enforce platform-only spawning ────────────────────────────────
+              # Only quota-api (the platform) may spawn servers — direct spawning
+              # through JupyterHub's own UI/API is disabled entirely, including
+              # CPU-only requests. quota-api stamps every spawn it issues with
+              # _platform_token, a secret (QUOTA_API_TOKEN) that a browser-driven
+              # spawn through JupyterHub's native form has no way to supply, since
+              # it never reaches the browser. Applies to admins too, for consistency.
+              _platform_token = (spawner.user_options or {}).get("_platform_token", "")
+              if _platform_token != _TOK:
+                  _log.warning(
+                      "Rejecting spawn for %s — missing/invalid _platform_token "
+                      "(direct JupyterHub spawn attempt, not via the platform)",
+                      username,
+                  )
+                  raise RuntimeError(
+                      "Direct spawning through JupyterHub is disabled. "
+                      "Please start your server from the platform UI instead."
+                  )
+
               # ── 1. Fetch profiles ────────────────────────────────────────────────
-              # JupyterHub admins bypass per-user profile restrictions and may use any
+              # Platform admins bypass per-user profile restrictions and may use any
               # GPU kernel slug.  We fetch the full catalogue from /kernels/profiles
               # (a dict keyed by slug) and convert it to the same list shape that the
               # per-user endpoint returns so the rest of the hook is unchanged.
-              is_admin = getattr(spawner.user, "admin", False)
+              #
+              # is_admin comes from user_options (set by /me/spawn from quota-api's
+              # own Keycloak-derived RBAC), NOT spawner.user.admin — JupyterHub has
+              # no native admin_users configured, so that flag is always False.
+              # Trusting user_options here is safe: we already verified
+              # _platform_token above, so this value was set by quota-api's own
+              # already-authenticated check, not supplied directly by the browser.
+              is_admin = bool((spawner.user_options or {}).get("is_admin", False))
 
               profiles = []
               try:
