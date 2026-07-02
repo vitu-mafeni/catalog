@@ -70,8 +70,8 @@ spec:
     dcgmExporter:
       enabled: true
       env:
-      - name: KUBERNETES_ENABLE_DRA
-        value: "true"
+      # - name: KUBERNETES_ENABLE_DRA
+      #   value: "true"
       - name: DCGM_EXPORTER_INTERVAL
         value: "5000"
       - name: DCGM_EXPORTER_KUBERNETES
@@ -98,17 +98,15 @@ spec:
         honorLabels: false
         additionalLabels:
           release: prometheus
-        relabelings:
-          - source_labels:
-              - __meta_kubernetes_endpoint_node_name
+        relabelings:                                          # same column as additionalLabels
+          - sourceLabels: [__meta_kubernetes_endpoint_node_name]
             regex: (.*)
-            target_label: kubernetes_node
+            targetLabel: kubernetes_node
             replacement: $1
             action: replace
-          - source_labels:
-              - __meta_kubernetes_pod_node_name
+          - sourceLabels: [__meta_kubernetes_pod_node_name]
             regex: (.*)
-            target_label: kubernetes_node
+            targetLabel: kubernetes_node
             replacement: $1
             action: replace
       version: 4.3.1-4.4.0-ubuntu22.04
@@ -145,7 +143,7 @@ spec:
           DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, FP16 activity
           DCGM_FI_PROF_DRAM_ACTIVE, gauge, DRAM activity
           DCGM_FI_PROF_PCIE_TX_BYTES, counter, PCIe TX bytes
-          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes          
+          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes                    
 
 
 
