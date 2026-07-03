@@ -35,7 +35,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16
+          image: docker.io/postgres:16
           envFrom:
             - secretRef:
                 name: keycloak-db-secret
@@ -87,7 +87,7 @@ spec:
     spec:
       initContainers:
         - name: wait-for-postgres
-          image: busybox:1.36
+          image: docker.io/busybox:1.36
           command: ["/bin/sh", "-c"]
           args:
             - |

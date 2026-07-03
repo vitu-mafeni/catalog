@@ -362,7 +362,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: configure
-          image: python:3.12-alpine
+          image: docker.io/python:3.12-alpine
           command: ["python3", "/scripts/configure.py"]
           env:
             - name: KEYCLOAK_URL
