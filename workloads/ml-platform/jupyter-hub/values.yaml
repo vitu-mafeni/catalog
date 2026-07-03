@@ -467,7 +467,7 @@ data:
         JUPYTER_GATEWAY_CONNECT_TIMEOUT: "120"
         JUPYTER_GATEWAY_WS_PING_INTERVAL: "30"
         KERNEL_SERVICE_ACCOUNT_NAME: "enterprise-gateway-sa"
-        QUOTA_API_URL: "http://10.244.0.1:9000"      # ← add
+        QUOTA_API_URL: "http://10.244.0.1:9000"      # ← add change
         QUOTA_API_TOKEN: "testtoken123"
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:
