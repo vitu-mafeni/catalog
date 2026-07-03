@@ -472,7 +472,7 @@ data:
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:
         name: docker.io/vitu1/jupyterhub-singleuser
-        tag: "checkpoint-restore-v1"
+        tag: "checkpoint-restore-v2"
         pullPolicy: IfNotPresent
       storage:
         type: dynamic
