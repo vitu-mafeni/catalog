@@ -54,6 +54,7 @@ data:
           # Use the external IP for the browser redirect
           authorize_url: "http://192.168.3.234:30090/realms/jupyterhub/protocol/openid-connect/auth"
 
+
           # ── Token claims ─────────────────────────────────────────
           username_claim: "preferred_username"
           # userdata_params:
@@ -88,7 +89,7 @@ data:
           # status lives only in quota-api's own RBAC (Keycloak platform-admin
           # group → is_admin claim), and is forwarded into user_options by
           # /me/spawn — never derived from a JupyterHub-native admin flag.
-          #custom pre_spawn_hook to call quota API and set allowed kernels per-user
+        #custom pre_spawn_hook to call quota API and set allowed kernels per-user
 
       extraEnv:
         # For local dev: use the node IP where fastapi dev is running
@@ -160,7 +161,6 @@ data:
           _portal = _os.environ.get("QUOTA_PORTAL_URL", "").strip()
           if _portal:
               c.OAuthenticator.logout_redirect_url = _portal.rstrip("/") + "/logout"
-
         loadRoles: |
           c.JupyterHub.load_roles = [
               {
@@ -285,12 +285,12 @@ data:
                       all_profiles = json.loads(resp.body)   # dict: slug → {display_name, kubespawner_override, gpu_fraction, …}
                       # Normalise to list shape expected below
                       profiles = [
-                        {"slug": s, "kubespawner_override": v["kubespawner_override"],
-                        "display_name": v.get("display_name", s),
-                        "gpu_fraction": v.get("gpu_fraction", 0.0),
-                        "kernel_gpu_mem_mb": v.get("kernel_gpu_mem_mb", 0),
-                        "kernel_gpu_cores": v.get("kernel_gpu_cores", 0)}
-                        for s, v in all_profiles.items()
+                          {"slug": s, "kubespawner_override": v["kubespawner_override"],
+                           "display_name": v.get("display_name", s),
+                           "gpu_fraction": v.get("gpu_fraction", 0.0),
+                           "kernel_gpu_mem_mb": v.get("kernel_gpu_mem_mb", 0),
+                           "kernel_gpu_cores": v.get("kernel_gpu_cores", 0)}
+                          for s, v in all_profiles.items()
                       ]
                       _log.info("admin %s: loaded %d profiles from catalogue", username, len(profiles))
                   else:
@@ -303,7 +303,7 @@ data:
                       profiles = json.loads(resp.body)
               except Exception as exc:
                   _log.warning("quota-api profile fetch failed for %s: %s — falling back to %s",
-                              username, exc, _FALLBACK_KERNEL)
+                               username, exc, _FALLBACK_KERNEL)
 
               # ── 2. Build kernel whitelist ────────────────────────────────────────
               # Rule: the whitelist is locked to EXACTLY the kernel the user chose at
@@ -371,16 +371,16 @@ data:
                       if _dname:
                           spawner.environment["KERNEL_DISPLAY_NAME"] = _dname
                   else:
-                      # kernel_slug given but not found in this user's profiles — deny gracefully
+                      # slug not found in this user's profiles — deny gracefully
                       _log.warning(
                           "kernel_slug %r not in profiles for %s — restricting to CPU",
                           kernel_slug, username,
                       )
                       kernels = _CPU_KERNELS
               else:
-                  # No kernel_slug at all (CPU spawn / direct JH UI spawn): CPU only
+                  # No GPU profile selected: CPU only
                   kernels = _CPU_KERNELS
-    
+
               spawner.environment["KERNEL_WHITELIST"] = ",".join(kernels)
               spawner.environment["JUPYTER_GATEWAY_KERNEL_NAME"] = kernels[0]
               # Propagate quota-api credentials into the singleuser pod so that
@@ -423,7 +423,7 @@ data:
                       raise RuntimeError(msg)
                   # Non-429 (network error, 5xx, etc.) → fail-open
                   _log.warning("quota-api enforce-spawn failed for %s (HTTP %s) — allowing spawn",
-                              username, exc.code)
+                               username, exc.code)
               except Exception as exc:
                   _log.warning("quota-api unreachable for %s: %s — allowing spawn", username, exc)
 
@@ -445,7 +445,7 @@ data:
               except HTTPError as exc:
                   if exc.code != 404:
                       _log.warning("quota untrack failed for %s/%s: HTTP %s",
-                                  username, server_name, exc.code)
+                                   username, server_name, exc.code)
               except Exception as exc:
                   _log.warning("quota untrack failed for %s/%s: %s", username, server_name, exc)
 
@@ -476,12 +476,577 @@ data:
         pullPolicy: IfNotPresent
       storage:
         type: dynamic
+        extraVolumes:
+          - name: labext-shared
+            emptyDir: {}
+        extraVolumeMounts:
+          # Only the jupyterlab-missed-output-replay subdirectory of the shared
+          # emptyDir lands on the extension's own subdirectory under
+          # labextensions/ — no change to the base singleuser image needed.
+          - name: labext-shared
+            mountPath: /opt/conda/share/jupyter/labextensions/jupyterlab-missed-output-replay
+            subPath: jupyterlab-missed-output-replay
+      initContainers:
+        # Delivers the frontend half of the browser-refresh output-loss fix
+        # (see eg_reconnect_buffer.py, the server-side half, in extraFiles
+        # below) — copies the built labextension into the shared volume above,
+        # which then lands inside the singleuser container's own
+        # labextensions/ directory. Same pattern as EG's kernelspecs
+        # initContainer (see enterprise-gateway-kernelspecs / eg-templates).
+        # Build/push from jupyterlab-missed-output-replay/Dockerfile before
+        # deploying; rebuild+push again any time src/index.ts changes.
+        - name: install-missed-output-replay
+          image: docker.io/vitu1/singleuser-extensions:missed-output-replay-0.1.7
+          volumeMounts:
+            - name: labext-shared
+              mountPath: /shared-labext
 
       # custom configs
       extraFiles:
+
+        eg-reconnect-buffer:
+          mountPath: /etc/jupyter/eg_reconnect_buffer.py
+          stringData: |
+            """Server-side output-replay buffer for Enterprise Gateway kernels.
+
+            Root cause (confirmed live against the real cluster, 2026-07-07):
+            JupyterLab correlates iopub output to a cell via an in-memory
+            ``execute_request.msg_id -> cell`` map built only by the page instance that
+            sent the request. A browser refresh wipes that map, so even output that
+            arrives correctly over a freshly reconnected websocket has nowhere to go and
+            gets silently dropped by the frontend.
+
+            Two designs were tried and rejected before this one:
+
+            1. A persistent listener opening a SECOND, independent GatewayKernelClient
+               per kernel (tied to the kernel's lifetime, not any one browser tab).
+               Worked in isolated testing, but destabilized the EG connection once a
+               real browser was also attached — EG doesn't tolerate a second concurrent
+               subscriber opened this way from the same jupyter_server process (observed
+               live: repeated "connection closed" cycling for one kernel_id).
+
+            2. Passively tapping the EXISTING browser-facing GatewayWebSocketConnection
+               only (no second connection). Turned out to capture NOTHING once the one
+               real connection drops: ``disconnect()`` tears down the upstream link to
+               EG immediately (unlike the local-kernel path, which explicitly buffers
+               via ``multi_kernel_manager.start_buffering()``), so there is no listener
+               at all during a genuine single-tab refresh gap. It only appeared to work
+               in earlier tests because a SECOND, still-open browser tab happened to be
+               relaying the same iopub broadcast the whole time.
+
+            Current design: reattachment, not a second connection. ``disconnect()`` is
+            confirmed (by reading jupyter_server/services/kernels/websocket.py) to fire
+            ONLY from ``KernelWebsocketHandler.on_close()`` — i.e. only when one
+            browser tab's websocket closes, never for real kernel shutdown (that's a
+            separate path via the kernel manager). So it's always safe to keep the
+            existing upstream connection to EG alive for a grace period instead of
+            tearing it down:
+
+              * ``disconnect()`` is patched to NOT close the upstream socket. Instead it
+                parks the connection object in a process-global registry and schedules
+                a real teardown after a grace period.
+              * ``connect()`` is patched to check that registry first. If a parked
+                connection exists for this kernel_id, the NEW connection object doesn't
+                dial EG again at all — it redirects the OLD (still running) connection's
+                ``websocket_handler`` to itself (so live output flows to the new browser
+                tab) and delegates its own ``handle_incoming_message``/``disconnect``
+                calls back to the OLD object. The OLD object's read loop — and hence its
+                one real upstream socket — lives for the kernel's whole session,
+                surviving any number of reconnects within grace windows, so there is
+                NEVER a second concurrent connection to the same kernel.
+              * Cell attribution still comes from watching outgoing execute_request
+                messages (JupyterLab stamps ``metadata.cellId``), same as before.
+
+            Delivery: enable as a server extension —
+                c.ServerApp.jpserver_extensions = {"eg_reconnect_buffer": True}
+            No image rebuild required; drop into the same custom-Python config block
+            that already patches GatewayKernelSpecManager / GatewayMappingKernelManager
+            in jh-config.yaml.
+            """
+            from __future__ import annotations
+
+            import collections
+            import json
+            import logging
+            import threading
+            import time
+            import uuid
+            from datetime import datetime, timezone
+
+            log = logging.getLogger("eg_reconnect_buffer")
+
+            _MAX_PER_KERNEL = 4000
+            _MAX_AGE_SECONDS = 6 * 3600
+            _GRACE_PERIOD_SECONDS = 45
+
+            _buffers: dict[str, "collections.deque"] = {}
+            _cell_map: dict[str, dict[str, str]] = {}
+            _seq_counters: dict[str, int] = {}
+            _orphaned: dict[str, dict] = {}
+            _seen_msg_ids: dict[str, "collections.deque"] = {}
+            _seen_msg_id_sets: dict[str, set] = {}
+            # Last iopub "status" content.execution_state seen per kernel — the ONLY way
+            # to know a kernel is busy at the moment a browser (re)attaches, since a
+            # genuinely long-running/infinite cell emits "busy" exactly once at
+            # execution start and never again until it finishes. A page that attaches
+            # after that single broadcast (any reload, or first load onto an
+            # already-running kernel) never receives it and is stuck showing "idle"
+            # forever, even while correctly blocking new execution — confirmed live
+            # 2026-07-08.
+            _last_status: dict[str, str] = {}
+            # execute_request msg_ids sent but whose OWN matching "idle" hasn't arrived
+            # yet, per kernel — see the "idle-while-still-busy" note in
+            # handle_outgoing_message for why this exists.
+            _pending_executes: dict[str, set] = {}
+            # Kernel ids with a genuine restart/shutdown in flight — see disconnect()'s
+            # use of this. Confirmed live 2026-07-08: without this, clicking Restart
+            # hung the kernel at "Unknown" forever (see _wrap_kernel_manager_lifecycle's
+            # docstring for the full mechanism).
+            _restarting: set = set()
+            _lock = threading.Lock()
+
+            _OUTPUT_MSG_TYPES = {"stream", "execute_result", "display_data", "error", "clear_output"}
+
+
+            def _record_request(kernel_id: str, msg: dict) -> None:
+                # NOTE: real JupyterLab traffic was found to only nest msg_type under
+                # "header" for client->server messages (unlike some server->client
+                # frames, which duplicate it at the top level too) — checking only the
+                # top-level key here silently matched nothing, so nothing was ever
+                # recorded, no matter how much real output the kernel produced.
+                msg_type = msg.get("msg_type") or (msg.get("header") or {}).get("msg_type")
+                if msg_type != "execute_request":
+                    return
+                cell_id = (msg.get("metadata") or {}).get("cellId")
+                msg_id = (msg.get("header") or {}).get("msg_id") or msg.get("msg_id")
+                if not cell_id or not msg_id:
+                    # Diagnostic: if this still doesn't fire correctly, the printed
+                    # metadata dict shows exactly what key real JupyterLab actually
+                    # used, instead of guessing again. Safe to remove once confirmed
+                    # working — this bypasses the logger deliberately (see log.info
+                    # calls elsewhere in this module never appearing in captured logs
+                    # despite the code paths they're in definitely running).
+                    import sys
+                    print(f"eg_reconnect_buffer: execute_request missing cellId/msg_id — "
+                          f"metadata={msg.get('metadata')!r} header={msg.get('header')!r}",
+                          file=sys.stderr, flush=True)
+                    return
+                with _lock:
+                    m = _cell_map.setdefault(kernel_id, {})
+                    m[msg_id] = cell_id
+                    if len(m) > _MAX_PER_KERNEL:
+                        for k in list(m.keys())[: len(m) - _MAX_PER_KERNEL]:
+                            m.pop(k, None)
+                    pending = _pending_executes.setdefault(kernel_id, set())
+                    pending.add(msg_id)
+                    if len(pending) > _MAX_PER_KERNEL:
+                        # Defensive only — every add here is normally matched by a
+                        # discard once that request's own "idle" arrives (see
+                        # handle_outgoing_message), so this shouldn't grow unbounded in
+                        # practice. Guards against a genuinely never-completing request
+                        # (e.g. a kernel that died mid-execution) pinning memory forever.
+                        for k in list(pending)[: len(pending) - _MAX_PER_KERNEL]:
+                            pending.discard(k)
+
+
+            def _record_output_msg(
+                kernel_id: str, msg_type: str, parent_msg_id: str | None, msg_id: str | None, content
+            ) -> None:
+                if msg_type not in _OUTPUT_MSG_TYPES or not parent_msg_id:
+                    return
+                with _lock:
+                    cell_id = _cell_map.get(kernel_id, {}).get(parent_msg_id)
+                    if not cell_id:
+                        return
+                    # iopub is a broadcast — every simultaneously-connected observer
+                    # (e.g. two browser tabs, or a reattached connection alongside a
+                    # diagnostic client) independently calls handle_outgoing_message for
+                    # the SAME message. Dedupe on the message's own unique msg_id so
+                    # multiple observers don't multiply entries in the buffer.
+                    seen = _seen_msg_ids.setdefault(kernel_id, collections.deque(maxlen=_MAX_PER_KERNEL))
+                    seen_set = _seen_msg_id_sets.setdefault(kernel_id, set())
+                    if msg_id:
+                        if msg_id in seen_set:
+                            return
+                        if len(seen) == seen.maxlen:
+                            seen_set.discard(seen[0])  # about to be evicted by the append below
+                        seen.append(msg_id)
+                        seen_set.add(msg_id)
+                    buf = _buffers.setdefault(kernel_id, collections.deque(maxlen=_MAX_PER_KERNEL))
+                    seq = _seq_counters.get(kernel_id, 0) + 1
+                    _seq_counters[kernel_id] = seq
+                    buf.append({
+                        "seq": seq, "cell_id": cell_id, "parent_msg_id": parent_msg_id,
+                        "msg_type": msg_type, "content": content, "ts": time.time(),
+                    })
+
+
+            def get_missed(kernel_id: str, since_seq: int = 0) -> list[dict]:
+                cutoff = time.time() - _MAX_AGE_SECONDS
+                with _lock:
+                    buf = _buffers.get(kernel_id)
+                    if not buf:
+                        return []
+                    return [m for m in buf if m["seq"] > since_seq and m["ts"] >= cutoff]
+
+
+            def get_pending_executions(kernel_id: str) -> list[dict]:
+                # Tells the client WHICH cells have a real, still-in-flight
+                # execute_request whose originating page is gone — not just what output
+                # has arrived so far. The client uses this to register its own
+                # Kernel.IFuture for that msg_id, so JupyterLab's native machinery
+                # (execution count, the running-cell spinner, and eventually resolving
+                # cleanly when the real reply/idle arrives) takes back over instead of
+                # everything being faked by one-off buffer replay forever.
+                with _lock:
+                    cell_map = _cell_map.get(kernel_id) or {}
+                    pending = _pending_executes.get(kernel_id) or set()
+                    return [
+                        {"msg_id": msg_id, "cell_id": cell_map[msg_id]}
+                        for msg_id in pending
+                        if msg_id in cell_map
+                    ]
+
+
+            async def _fetch_gateway_execution_state(kernel_id: str) -> str | None:
+                # _last_status is only ever populated by PASSIVELY witnessing an iopub
+                # "status" broadcast — but a long-running cell only emits "busy" ONCE, at
+                # execution start, and this process may not have existed yet (pod
+                # restart) or simply never had a browser attached at that exact moment
+                # (this very reconnect scenario). Enterprise Gateway itself is the one
+                # thing that has ALWAYS had a live connection to the real kernel process,
+                # so ask it directly for ground truth instead of trusting our own cache.
+                try:
+                    from jupyter_server.gateway.gateway_client import GatewayClient
+                    from jupyter_server.utils import url_path_join
+                    from tornado.escape import url_escape
+                    from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+
+                    gw = GatewayClient.instance()
+                    url = url_path_join(gw.url or "", gw.kernels_endpoint, url_escape(kernel_id))
+                    kwargs = gw.load_connection_args(request_timeout=5.0)
+                    request = HTTPRequest(url, method="GET", **kwargs)
+                    response = await AsyncHTTPClient().fetch(request)
+                    model = json.loads(response.body)
+                    return model.get("execution_state")
+                except Exception:
+                    log.debug("eg_reconnect_buffer: gateway kernel-state query failed", exc_info=True)
+                    return None
+
+
+            def _synthetic_status_message(execution_state: str) -> str:
+                # Mirrors the real wire shape (msg_type/msg_id duplicated at both the top
+                # level AND under header, matching what real server->client frames use —
+                # see _record_request's docstring for the client->server asymmetry this
+                # is NOT subject to, since this is a server-injected message).
+                msg_id = uuid.uuid4().hex
+                now = datetime.now(timezone.utc).isoformat()
+                payload = {
+                    "header": {
+                        "msg_id": msg_id, "msg_type": "status", "username": "eg_reconnect_buffer",
+                        "session": "eg_reconnect_buffer", "date": now, "version": "5.3",
+                    },
+                    "msg_id": msg_id,
+                    "msg_type": "status",
+                    "parent_header": {},
+                    "metadata": {},
+                    "content": {"execution_state": execution_state},
+                    "buffers": [],
+                    "channel": "iopub",
+                }
+                return json.dumps(payload)
+
+
+            def forget_kernel(kernel_id: str) -> None:
+                with _lock:
+                    _buffers.pop(kernel_id, None)
+                    _cell_map.pop(kernel_id, None)
+                    _seq_counters.pop(kernel_id, None)
+                    _seen_msg_ids.pop(kernel_id, None)
+                    _seen_msg_id_sets.pop(kernel_id, None)
+                    _last_status.pop(kernel_id, None)
+                    _pending_executes.pop(kernel_id, None)
+                    orphan = _orphaned.pop(kernel_id, None)
+                if orphan:
+                    try:
+                        from tornado.ioloop import IOLoop
+                        IOLoop.current().remove_timeout(orphan["timer"])
+                    except Exception:
+                        pass
+
+
+            def _wrap_connection_class():
+                from jupyter_server.gateway.connections import GatewayWebSocketConnection
+                from tornado.ioloop import IOLoop
+
+                if getattr(GatewayWebSocketConnection, "_eg_reconnect_buffer_patched", False):
+                    return
+
+                orig_connect = GatewayWebSocketConnection.connect
+                orig_disconnect = GatewayWebSocketConnection.disconnect
+                orig_incoming = GatewayWebSocketConnection.handle_incoming_message
+                orig_outgoing = GatewayWebSocketConnection.handle_outgoing_message
+
+                def handle_incoming_message(self, message: str) -> None:
+                    try:
+                        msg = json.loads(message)
+                        _record_request(self.kernel_id, msg)
+                    except Exception:
+                        log.debug("eg_reconnect_buffer: failed handling incoming message", exc_info=True)
+                    return orig_incoming(self, message)
+
+                def handle_outgoing_message(self, incoming_msg: str, *args) -> None:
+                    try:
+                        msg = json.loads(incoming_msg)
+                        msg_type = msg.get("msg_type") or (msg.get("header") or {}).get("msg_type")
+                        parent_msg_id = (msg.get("parent_header") or {}).get("msg_id")
+                        msg_id = (msg.get("header") or {}).get("msg_id") or msg.get("msg_id")
+                        if msg_type == "status":
+                            state = (msg.get("content") or {}).get("execution_state")
+                            if state == "idle":
+                                # Every request is bracketed by its own busy/idle pair per
+                                # the messaging spec — including jupyter_server's periodic
+                                # kernel_info_request "nudge" used to check a remote
+                                # kernel is still alive. That nudge's own idle is a
+                                # legitimate message, but it has nothing to do with a
+                                # real cell that's still executing — forwarding it
+                                # verbatim makes JupyterLab flip to "idle" (disabling
+                                # Interrupt, among other things) while the actual
+                                # execution keeps running. Confirmed live 2026-07-08:
+                                # streams kept arriving well after the UI showed idle.
+                                # Only trust an idle that matches a REAL outstanding
+                                # execute_request we ourselves recorded; anything else,
+                                # while a real execution is still open, gets swallowed
+                                # rather than forwarded.
+                                with _lock:
+                                    pending = _pending_executes.get(self.kernel_id) or set()
+                                    if parent_msg_id in pending:
+                                        pending.discard(parent_msg_id)
+                                        _last_status[self.kernel_id] = "idle"
+                                    elif pending:
+                                        log.debug(
+                                            "eg_reconnect_buffer: suppressing stray idle for kernel %s "
+                                            "(parent %s not a tracked execute_request; %d still outstanding)",
+                                            self.kernel_id, parent_msg_id, len(pending),
+                                        )
+                                        return
+                                    else:
+                                        _last_status[self.kernel_id] = "idle"
+                            elif state:
+                                with _lock:
+                                    _last_status[self.kernel_id] = state
+                        _record_output_msg(self.kernel_id, msg_type, parent_msg_id, msg_id, msg.get("content"))
+                    except Exception:
+                        log.debug("eg_reconnect_buffer: failed handling outgoing message", exc_info=True)
+                    return orig_outgoing(self, incoming_msg, *args)
+
+                async def _sync_status_on_attach(target, kernel_id: str) -> None:
+                    # Ask Enterprise Gateway for ground truth first; only fall back to
+                    # our own passively-observed cache if that query fails (e.g. EG
+                    # briefly unreachable) — see _fetch_gateway_execution_state's
+                    # docstring for why the cache alone isn't trustworthy on its own.
+                    state = await _fetch_gateway_execution_state(kernel_id)
+                    if state:
+                        with _lock:
+                            _last_status[kernel_id] = state
+                    else:
+                        with _lock:
+                            state = _last_status.get(kernel_id)
+                    if state == "busy":
+                        try:
+                            target.websocket_handler.write_message(_synthetic_status_message("busy"))
+                            log.info("eg_reconnect_buffer: synced busy status for kernel %s", kernel_id)
+                        except Exception:
+                            log.debug("eg_reconnect_buffer: failed to synthesize status message", exc_info=True)
+
+                async def connect(self):
+                    kernel_id = self.kernel_id
+                    with _lock:
+                        orphan = _orphaned.pop(kernel_id, None)
+                    if orphan is not None:
+                        old = orphan["conn"]
+                        try:
+                            IOLoop.current().remove_timeout(orphan["timer"])
+                        except Exception:
+                            pass
+                        # Redirect the still-running old connection's output to THIS
+                        # browser tab, and make this new instance delegate back to it —
+                        # `old` keeps the one real upstream link to EG alive for the
+                        # kernel's whole session, across any number of reconnects.
+                        old.websocket_handler = self.websocket_handler
+                        old.disconnected = False
+                        old.retry = 0
+                        self.handle_incoming_message = old.handle_incoming_message
+                        self.disconnect = old.disconnect
+                        log.info("eg_reconnect_buffer: reattached browser to existing EG connection for kernel %s", kernel_id)
+                        await _sync_status_on_attach(old, kernel_id)
+                        return
+                    await orig_connect(self)
+                    # Also covers a genuinely FRESH connection (no orphan record at all —
+                    # e.g. a second browser tab, or the grace period already expired) —
+                    # this page's kernel connection has equally never seen any status
+                    # broadcast for a kernel that was already busy before it attached.
+                    await _sync_status_on_attach(self, kernel_id)
+
+                def disconnect(self):
+                    kernel_id = self.kernel_id
+                    with _lock:
+                        was_restarting = kernel_id in _restarting
+                        _restarting.discard(kernel_id)
+                    if was_restarting:
+                        # This disconnect is the browser's OWN client-side reconnect()
+                        # cycle following a genuine Restart/Shutdown — the underlying
+                        # kernel process is intentionally going away (or already gone).
+                        # Parking this connection would make the very next connect()
+                        # "reattach" the browser to a link tied to the now-dead process
+                        # instead of dialing Enterprise Gateway fresh, which is exactly
+                        # what left the kernel stuck at "Unknown" after Restart
+                        # (confirmed live 2026-07-08). Tear it down for real so the
+                        # next connect() falls through to a clean orig_connect().
+                        return orig_disconnect(self)
+                    if self.ws is None and (self.ws_future is None or self.ws_future.done()):
+                        return orig_disconnect(self)
+
+                    def real_disconnect():
+                        with _lock:
+                            still_parked = _orphaned.get(kernel_id, {}).get("conn") is self
+                            if still_parked:
+                                _orphaned.pop(kernel_id, None)
+                        if still_parked:
+                            orig_disconnect(self)
+
+                    timer = IOLoop.current().call_later(_GRACE_PERIOD_SECONDS, real_disconnect)
+                    with _lock:
+                        _orphaned[kernel_id] = {"conn": self, "timer": timer}
+                    # Deliberately NOT calling orig_disconnect / touching self.ws or
+                    # self.disconnected here — keep the upstream link alive so iopub
+                    # output keeps flowing into handle_outgoing_message (still buffered
+                    # via the patch above) while no browser tab is attached.
+
+                GatewayWebSocketConnection.connect = connect
+                GatewayWebSocketConnection.disconnect = disconnect
+                GatewayWebSocketConnection.handle_incoming_message = handle_incoming_message
+                GatewayWebSocketConnection.handle_outgoing_message = handle_outgoing_message
+                GatewayWebSocketConnection._eg_reconnect_buffer_patched = True
+                log.info("eg_reconnect_buffer: patched GatewayWebSocketConnection (connect/disconnect/incoming/outgoing)")
+
+
+            def _wrap_kernel_manager_lifecycle():
+                # Marks a kernel as "genuinely restarting/shutting down" for the benefit
+                # of disconnect() above. Enterprise Gateway's restart/shutdown REST calls
+                # go through GatewayMappingKernelManager, never through
+                # GatewayWebSocketConnection — but the BROWSER's own client-side
+                # kernel.restart() always closes and reopens its websocket immediately
+                # afterward (jupyterlab's KernelConnection.reconnect()), and that
+                # close/reopen looks IDENTICAL, from disconnect()'s point of view, to a
+                # plain browser-tab refresh. Without this, the reconnect after a real
+                # restart got "helpfully" reattached to the connection for the OLD,
+                # now-dead kernel process instead of dialing fresh.
+                from jupyter_server.gateway.managers import GatewayMappingKernelManager
+                from tornado.ioloop import IOLoop
+
+                if getattr(GatewayMappingKernelManager, "_eg_reconnect_buffer_lifecycle_patched", False):
+                    return
+
+                orig_restart = GatewayMappingKernelManager.restart_kernel
+                orig_shutdown = GatewayMappingKernelManager.shutdown_kernel
+
+                def _mark_restarting(kernel_id: str) -> None:
+                    with _lock:
+                        _restarting.add(kernel_id)
+                    # Safety net: if no browser is attached at all when this fires (so
+                    # disconnect() never runs to consume the flag), don't leave it set
+                    # forever — a stray future reconnect wrongly skipping reattachment
+                    # is a far smaller cost than what this fixes.
+                    IOLoop.current().call_later(30, lambda: _restarting.discard(kernel_id))
+
+                async def restart_kernel(self, kernel_id, *args, **kwargs):
+                    _mark_restarting(kernel_id)
+                    result = await orig_restart(self, kernel_id, *args, **kwargs)
+                    # The kernel_id is reused but the underlying process is now a brand
+                    # new one — every execute_request msg_id we were tracking for it
+                    # belongs to a process that no longer exists and will never send a
+                    # matching reply. Stale entries here would make the client try to
+                    # adopt (or the busy-status sync report) an execution that can
+                    # never complete.
+                    forget_kernel(kernel_id)
+                    return result
+
+                async def shutdown_kernel(self, kernel_id, *args, **kwargs):
+                    _mark_restarting(kernel_id)
+                    try:
+                        return await orig_shutdown(self, kernel_id, *args, **kwargs)
+                    finally:
+                        forget_kernel(kernel_id)
+
+                GatewayMappingKernelManager.restart_kernel = restart_kernel
+                GatewayMappingKernelManager.shutdown_kernel = shutdown_kernel
+                GatewayMappingKernelManager._eg_reconnect_buffer_lifecycle_patched = True
+                log.info("eg_reconnect_buffer: patched GatewayMappingKernelManager (restart_kernel/shutdown_kernel)")
+
+
+            def _make_handler():
+                from jupyter_server.base.handlers import APIHandler
+                import tornado.web
+
+                class MissedOutputHandler(APIHandler):
+                    @tornado.web.authenticated
+                    def get(self, kernel_id: str) -> None:
+                        since = int(self.get_query_argument("since_seq", "0"))
+                        self.finish(json.dumps({
+                            "messages": get_missed(kernel_id, since),
+                            "pending_executions": get_pending_executions(kernel_id),
+                        }))
+
+                return MissedOutputHandler
+
+
+            def install(serverapp) -> None:
+                _wrap_connection_class()
+                try:
+                    _wrap_kernel_manager_lifecycle()
+                except Exception:
+                    # Non-fatal: worst case, Restart/Shutdown reconnects go through the
+                    # (previously existing) reattach path instead of a fresh dial. Never
+                    # let this block the rest of the extension from loading.
+                    log.warning("eg_reconnect_buffer: failed to patch kernel manager lifecycle", exc_info=True)
+                # Routes must be registered relative to base_url — JupyterHub sets this
+                # to /user/<name>/<server>/ for singleuser servers, and jupyter_server's
+                # OWN routes (e.g. .../api/kernels/<id>/channels) are all registered
+                # this way. A bare, unprefixed path only matches requests hitting the
+                # server root directly, which is never what the browser actually
+                # requests through the Hub's proxy — every request is 404 in that case,
+                # even though the extension itself loaded and patched correctly.
+                from jupyter_server.utils import url_path_join
+
+                pattern = url_path_join(serverapp.base_url, r"api/kernels/(?P<kernel_id>[\w-]+)/missed_output")
+                route = (pattern, _make_handler())
+                serverapp.web_app.add_handlers(".*$", [route])
+                log.info("eg_reconnect_buffer: registered %s", pattern)
+
+
+            def _jupyter_server_extension_points():
+                return [{"module": "eg_reconnect_buffer"}]
+
+
+            def _load_jupyter_server_extension(serverapp):
+                install(serverapp)
+
         kernel-filter-config:
           mountPath: /etc/jupyter/jupyter_server_config.py
           stringData: |
+            import sys
+            sys.path.insert(0, "/etc/jupyter")
+            # NOTE: c.ServerApp.jpserver_extensions is a Dict trait — reading it
+            # directly here (before the real ServerApp has loaded this config)
+            # returns a LazyConfigValue placeholder, not a dict, so
+            # "{**(c.ServerApp.jpserver_extensions or {}), ...}" raises
+            # TypeError: 'LazyConfigValue' object is not a mapping. .update() is
+            # the correct, traitlets-idiomatic way to merge into a Dict trait
+            # from a config file — it records a deferred merge that gets
+            # applied correctly once ServerApp actually loads this config.
+            c.ServerApp.jpserver_extensions.update({"eg_reconnect_buffer": True})
+
             import os
             _wl = frozenset(k.strip() for k in os.environ.get("KERNEL_WHITELIST", "").split(",") if k.strip())
             if _wl:
@@ -516,7 +1081,7 @@ data:
             # manages an already-running kernel connection and is NOT called on
             # kernel creation — patching it was a no-op.
             import asyncio, json as _json, logging as _logging, \
-                urllib.request, urllib.error
+                   urllib.request, urllib.error
 
             _qlog       = _logging.getLogger("quota_kernel_hook")
             _QUOTA_API  = os.environ.get("QUOTA_API_URL", "")
@@ -556,10 +1121,10 @@ data:
                                     raise RuntimeError(_msg)
                                 # Non-429 (auth error, network): fail open
                                 _qlog.warning("enforce-kernel non-429 error %s for %s — failing open",
-                                            _e.code, _JHUB_USER)
+                                              _e.code, _JHUB_USER)
                             except Exception as _ex:
                                 _qlog.warning("enforce-kernel unreachable for %s — failing open: %s",
-                                            _JHUB_USER, _ex)
+                                              _JHUB_USER, _ex)
                         try:
                             await loop.run_in_executor(None, _check)
                         except RuntimeError as _e:
