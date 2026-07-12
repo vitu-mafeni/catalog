@@ -66,8 +66,8 @@ spec:
       clusterRole: kernel-controller
       shareGatewayNamespace: true
       launchTimeout: 600
-      cullIdleTimeout: 3600
-      cullConnected: true
+      cullIdleTimeout: 0
+      cullConnected: false
       allowedKernels:
       - python3
       - r_kubernetes
@@ -86,7 +86,7 @@ spec:
       - tf-gpu-dedicated
       defaultKernelName: python3
     kernelspecs:
-      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.0.8
+      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.0.9
       imagePullPolicy: Always
     nfs:
       enabled: false

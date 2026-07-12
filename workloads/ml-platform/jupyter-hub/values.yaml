@@ -22,6 +22,18 @@ data:
           http: 30080
           https: 30443
 
+    # Chart's built-in jupyterhub-idle-culler service. Left unset, the chart
+    # defaults to timeout=3600 (1 hour) — that default was silently culling
+    # singleuser servers mid-training-job, since "inactive" here means no
+    # traffic reached the Hub API, not whether the kernel was busy computing.
+    # Raised to ~2 months so long-running training jobs survive; a genuinely
+    # abandoned server still gets reclaimed eventually rather than never.
+    cull:
+      enabled: true
+      timeout: 5184000   # 60 days
+      every: 600
+      concurrency: 10
+
     hub:
       services:
         quota-api:
@@ -453,6 +465,41 @@ data:
           c.KubeSpawner.post_stop_hook = _post_stop
           c.KubeSpawner.profile_list = []
 
+        blockNativeUI: |
+          # kernelAccess above stops direct spawning through JupyterHub's native
+          # UI (rejects any spawn missing _platform_token), but that only fires
+          # on submit — the /hub/home "Start My Server" page, /hub/spawn's
+          # profile-picker form, and /hub/token's own API-token-creation UI
+          # were still fully reachable and renderable by any authenticated
+          # user. This closes that gap by redirecting all three straight to
+          # the platform portal instead, so the native UI is never shown at
+          # all, not just non-functional once you get there.
+          #
+          # /hub/token specifically lets a user mint their own long-lived API
+          # tokens outside quota-api's tracking — worth closing for the same
+          # reason spawning is locked down: all platform access should be
+          # auditable through quota-api, not a side door in JupyterHub itself.
+          #
+          # Only the page handlers are touched — /hub/api/* (used by quota-api
+          # itself) is a completely separate handler tree and is unaffected.
+          import os as _os
+          import logging as _log2
+          from jupyterhub.handlers.pages import HomeHandler, SpawnHandler, TokenPageHandler
+
+          _portal_url = _os.environ.get("QUOTA_PORTAL_URL", "").strip().rstrip("/")
+
+          def _redirect_to_portal(self, *args, **kwargs):
+              target = _portal_url or "/hub/login"
+              self.redirect(target, permanent=False)
+
+          HomeHandler.get = _redirect_to_portal
+          SpawnHandler.get = _redirect_to_portal
+          TokenPageHandler.get = _redirect_to_portal
+          _log2.getLogger("JupyterHub").info(
+              "blockNativeUI: /hub/home, /hub/spawn, and /hub/token now redirect to %s",
+              _portal_url or "(QUOTA_PORTAL_URL unset — falling back to /hub/login)",
+          )
+
     singleuser:
       defaultUrl: "/lab"
       profileList: []
@@ -460,6 +507,7 @@ data:
         CHECKPOINT_NAMESPACE: "enterprise-gateway"
         KERNEL_USERNAME: "k"
         CHECKPOINT_API_URL: 'http://checkpoint-apiserver.stateful-migration.svc.cluster.local:8090' #change here
+
 
         JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
         JUPYTER_GATEWAY_WS_URL: "ws://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"
@@ -486,6 +534,10 @@ data:
           - name: labext-shared
             mountPath: /opt/conda/share/jupyter/labextensions/jupyterlab-missed-output-replay
             subPath: jupyterlab-missed-output-replay
+          # Same pattern for the pending-resource notification extension.
+          - name: labext-shared
+            mountPath: /opt/conda/share/jupyter/labextensions/jupyterlab-pod-pending-notice
+            subPath: jupyterlab-pod-pending-notice
       initContainers:
         # Delivers the frontend half of the browser-refresh output-loss fix
         # (see eg_reconnect_buffer.py, the server-side half, in extraFiles
@@ -497,6 +549,17 @@ data:
         # deploying; rebuild+push again any time src/index.ts changes.
         - name: install-missed-output-replay
           image: docker.io/vitu1/singleuser-extensions:missed-output-replay-0.1.7
+          volumeMounts:
+            - name: labext-shared
+              mountPath: /shared-labext
+        # Delivers the pending-resource notification labextension (see
+        # jupyterlab-pod-pending-notice/ in this repo) — same shared-volume
+        # hand-off as install-missed-output-replay above. Build/push from
+        # jupyterlab-pod-pending-notice/Dockerfile before deploying; rebuild+push
+        # again any time its src/index.ts changes. The image tag below is a
+        # placeholder — update once the image is actually built and pushed.
+        - name: install-pod-pending-notice
+          image: docker.io/vitu1/singleuser-extensions:pod-pending-notice-0.1.1
           volumeMounts:
             - name: labext-shared
               mountPath: /shared-labext
@@ -1032,6 +1095,115 @@ data:
             def _load_jupyter_server_extension(serverapp):
                 install(serverapp)
 
+        pod-pending-status:
+          mountPath: /etc/jupyter/pod_pending_status.py
+          stringData: |
+            """Server-side proxy exposing kernel pod-pending status to JupyterLab.
+
+            Companion to eg_reconnect_buffer.py — same delivery mechanism (a Jupyter
+            server extension dropped into the singleuser pod via jh-config.yaml's
+            extraFiles, enabled through c.ServerApp.jpserver_extensions), same route
+            style (relative to serverapp.base_url so it works behind JupyterHub's
+            per-user proxy prefix).
+
+            IMPORTANT — this is keyed by USERNAME, not kernel_id, and that's deliberate,
+            not an oversight. The original design polled a specific kernel_id, but that
+            can never work for the case that actually matters: jupyter_server's
+            POST /api/sessions blocks synchronously for the ENTIRE kernel-start attempt
+            (confirmed against real logs — "Request start kernel: kernel_id=None, ..."
+            followed, on a stuck-Pending kernel, by nothing else until either success or
+            Enterprise Gateway's launch-timeout error 250+ seconds later). The browser
+            never learns the kernel_id while the pod is Pending, so a kernel_id-keyed
+            poll has nothing to poll during exactly the window this feature exists for.
+            Polling by username sidesteps that entirely — the frontend doesn't need to
+            know which kernel_id it's waiting on, just whether ANY of the user's kernels
+            are currently blocked on cluster resources.
+
+            This module does NOT talk to Kubernetes directly — quota-api already has an
+            in-cluster K8s client and the kernel_id -> pod mapping (see k8s.py's
+            _k8s_eg_pod_map / pod_pending_reason). Duplicating that here would mean
+            giving the singleuser pod's own service account new cross-namespace RBAC
+            just to read enterprise-gateway pods, for information quota-api already
+            computes. Instead this simply forwards the request server-side to
+            quota-api's own GET /workloads/{username}/kernels — the same endpoint the
+            portal Dashboard's pending-resource banner polls — using the
+            QUOTA_API_URL / QUOTA_API_TOKEN already injected into every singleuser pod's
+            environment (see spawner.environment below — the same values the hub itself
+            uses to call quota-api), and JUPYTERHUB_USER (also standard JupyterHub
+            spawner env) to identify which user's kernels to check.
+
+            Delivery: enable as a server extension —
+                c.ServerApp.jpserver_extensions.update({"pod_pending_status": True})
+            """
+            from __future__ import annotations
+
+            import json
+            import logging
+            import os
+
+            log = logging.getLogger("pod_pending_status")
+
+
+            async def _fetch_pending_status() -> dict:
+                quota_api_url = os.environ.get("QUOTA_API_URL", "")
+                token = os.environ.get("QUOTA_API_TOKEN", "")
+                username = os.environ.get("JUPYTERHUB_USER", "")
+                if not quota_api_url or not token or not username:
+                    log.warning(
+                        "pod_pending_status: QUOTA_API_URL/QUOTA_API_TOKEN/JUPYTERHUB_USER not set in environment"
+                    )
+                    return {"pending_reason": None, "kernel_name": None}
+                try:
+                    from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+
+                    url = f"{quota_api_url.rstrip('/')}/workloads/{username}/kernels"
+                    request = HTTPRequest(
+                        url, method="GET",
+                        headers={"Authorization": f"Bearer {token}"},
+                        request_timeout=5.0,
+                    )
+                    response = await AsyncHTTPClient().fetch(request)
+                    kernels = json.loads(response.body)
+                    for k in kernels or []:
+                        if k.get("pending_reason") == "insufficient_resources":
+                            return {
+                                "pending_reason": "insufficient_resources",
+                                "kernel_name": k.get("kernel_name"),
+                            }
+                    return {"pending_reason": None, "kernel_name": None}
+                except Exception:
+                    log.debug("pod_pending_status: quota-api lookup failed for user %s", username, exc_info=True)
+                    return {"pending_reason": None, "kernel_name": None}
+
+
+            def _make_handler():
+                from jupyter_server.base.handlers import APIHandler
+                import tornado.web
+
+                class PendingStatusHandler(APIHandler):
+                    @tornado.web.authenticated
+                    async def get(self) -> None:
+                        self.finish(json.dumps(await _fetch_pending_status()))
+
+                return PendingStatusHandler
+
+
+            def install(serverapp) -> None:
+                from jupyter_server.utils import url_path_join
+
+                pattern = url_path_join(serverapp.base_url, r"api/kernels/pending_status")
+                route = (pattern, _make_handler())
+                serverapp.web_app.add_handlers(".*$", [route])
+                log.info("pod_pending_status: registered %s", pattern)
+
+
+            def _jupyter_server_extension_points():
+                return [{"module": "pod_pending_status"}]
+
+
+            def _load_jupyter_server_extension(serverapp):
+                install(serverapp)
+
         kernel-filter-config:
           mountPath: /etc/jupyter/jupyter_server_config.py
           stringData: |
@@ -1045,7 +1217,10 @@ data:
             # the correct, traitlets-idiomatic way to merge into a Dict trait
             # from a config file — it records a deferred merge that gets
             # applied correctly once ServerApp actually loads this config.
-            c.ServerApp.jpserver_extensions.update({"eg_reconnect_buffer": True})
+            c.ServerApp.jpserver_extensions.update({
+                "eg_reconnect_buffer": True,
+                "pod_pending_status": True,
+            })
 
             import os
             _wl = frozenset(k.strip() for k in os.environ.get("KERNEL_WHITELIST", "").split(",") if k.strip())
@@ -1141,4 +1316,4 @@ data:
                 _qlog.error("Failed to patch GatewayMappingKernelManager: %s", _patch_err)
 
     ingress:
-      enabled: false    
+      enabled: false        
