@@ -1,12 +1,14 @@
 apiVersion: apps/v1
 kind: DaemonSet
-metadata:
+metadata: # kpt-merge: stateful-migration/checkpoint-backup-controller
   name: checkpoint-backup-controller
   namespace: stateful-migration
   labels:
     app.kubernetes.io/name: checkpoint-backup-controller
     app.kubernetes.io/part-of: stateful-migration-operator
     app.kubernetes.io/component: controller
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|stateful-migration|checkpoint-backup-controller'
 spec:
   selector:
     matchLabels:
@@ -32,7 +34,7 @@ spec:
         effect: NoExecute
       containers:
       - name: controller
-        image: docker.io/lehuannhatrang/stateful-migration-operator:checkpointBackup_v2.16
+        image: docker.io/vitu1/checkpoint-controller:v2
         imagePullPolicy: IfNotPresent
         command:
         - /manager

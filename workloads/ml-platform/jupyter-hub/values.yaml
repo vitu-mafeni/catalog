@@ -506,7 +506,19 @@ data:
       extraEnv:
         CHECKPOINT_NAMESPACE: "enterprise-gateway"
         KERNEL_USERNAME: "k"
-        CHECKPOINT_API_URL: 'http://checkpoint-apiserver.stateful-migration.svc.cluster.local:8090' #change here
+        # {username} is KubeSpawner's own environment-variable templating —
+        # substituted with the REAL spawning user at pod-create time, same
+        # mechanism already used for {username}/{userid} elsewhere in
+        # kubespawner. The in-notebook kernel_checkpoint extension itself
+        # sends no auth/identity of any kind (confirmed live) and can't be
+        # modified (ships prebuilt in the notebook image), so identity is
+        # smuggled in via this URL instead: the checkpoint-apiserver's new
+        # /u/{username}/api/v1/... routes (see stateful-migration-operator
+        # internal/apiserver/server.go) read the username straight from the
+        # path and stamp/verify the migration.dcnlab.com/user label on the
+        # CheckpointBackup CR itself. Every user's own pod gets a URL with
+        # their OWN username already baked in — no per-user config needed.
+        CHECKPOINT_API_URL: "http://checkpoint-apiserver.stateful-migration.svc.cluster.local:8090/u/{username}"
 
 
         JUPYTER_GATEWAY_URL: "http://enterprise-gateway.enterprise-gateway.svc.cluster.local:8888"

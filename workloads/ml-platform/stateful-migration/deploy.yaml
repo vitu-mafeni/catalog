@@ -1,13 +1,14 @@
-
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata: # kpt-merge: stateful-migration/checkpoint-apiserver
   name: checkpoint-apiserver
   namespace: stateful-migration
   labels:
     app.kubernetes.io/name: checkpoint-apiserver
     app.kubernetes.io/part-of: stateful-migration-operator
     app.kubernetes.io/component: apiserver
+  annotations:
+    internal.kpt.dev/upstream-identifier: 'apps|Deployment|stateful-migration|checkpoint-apiserver'
 spec:
   replicas: 1
   selector:
@@ -23,7 +24,7 @@ spec:
       serviceAccountName: checkpoint-apiserver-sa
       containers:
       - name: apiserver
-        image: docker.io/lehuannhatrang/stateful-migration-operator:checkpointApiserver_v2.16
+        image: docker.io/vitu1/checkpoint-apiserver:v1
         imagePullPolicy: IfNotPresent
         command:
         - /apiserver
