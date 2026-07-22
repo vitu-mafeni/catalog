@@ -24,7 +24,7 @@ spec:
       serviceAccountName: checkpoint-apiserver-sa
       containers:
       - name: apiserver
-        image: docker.io/vitu1/checkpoint-apiserver:v1
+        image: docker.io/vitu1/checkpoint-apiserver:v2
         imagePullPolicy: IfNotPresent
         command:
         - /apiserver

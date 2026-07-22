@@ -34,7 +34,7 @@ spec:
         effect: NoExecute
       containers:
       - name: controller
-        image: docker.io/vitu1/checkpoint-controller:v2
+        image: docker.io/vitu1/checkpoint-controller:v4
         imagePullPolicy: IfNotPresent
         command:
         - /manager
