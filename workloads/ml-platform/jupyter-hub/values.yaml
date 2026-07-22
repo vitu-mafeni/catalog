@@ -1328,4 +1328,4 @@ data:
                 _qlog.error("Failed to patch GatewayMappingKernelManager: %s", _patch_err)
 
     ingress:
-      enabled: false        
+      enabled: false            

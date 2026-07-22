@@ -81,12 +81,15 @@ spec:
       - pytorch-gpu-quarter
       - pytorch-gpu-half
       - pytorch-gpu-dedicated
+      - pytorch-gpu-quarter-vscode
       - tf-gpu-quarter
       - tf-gpu-half
       - tf-gpu-dedicated
+      - tf-gpu-quarter-vscode
+      
       defaultKernelName: python3
     kernelspecs:
-      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.0.9
+      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.1.0
       imagePullPolicy: Always
     nfs:
       enabled: false
