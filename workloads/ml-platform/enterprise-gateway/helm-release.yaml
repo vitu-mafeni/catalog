@@ -1,3 +1,19 @@
+# Ready-to-apply copy of the LIVE enterprise-gateway HelmRelease, with the
+# custom-image-as-GPU-base changes layered in (kernel.allowedKernels emptied,
+# kernelspecs.image emptied, nfs.internalServerIPAddress filled in). Based on
+# the actual cluster resource (kubectl get helmrelease enterprise-gateway -n
+# enterprise-gateway -o yaml) as of 2026-07-28, NOT the (stale) committed copy
+# at D:\codes\catalog\workloads\ml-platform\enterprise-gateway\helm-release.yaml
+# — that file drifted from the live cluster (older image tags, kip.enabled,
+# cullIdleTimeout/cullConnected, missing EG_CLIENT_ENVS and the two
+# -vscode kernel entries the live resource has).
+#
+# This file is NOT wired into any deploy pipeline — copy its `spec:` block
+# into wherever you actually manage this HelmRelease (the catalog repo, or
+# `kubectl edit`/`kubectl apply` directly) yourself. See
+# docs/requirements/custom-image-launch-deploy-steps.md for the NFS export +
+# seeding steps this depends on before flipping nfs.enabled to true.
+
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: # kpt-merge: enterprise-gateway/enterprise-gateway
@@ -68,32 +84,73 @@ spec:
       launchTimeout: 600
       cullIdleTimeout: 0
       cullConnected: false
+      # Left EMPTY so kernelspecs discovered on the NFS export below (incl.
+      # custom-image kernelspecs quota_api's kernelspec_service.py writes)
+      # become usable with no redeploy. NOT "deny all": jupyter_client's
+      # KernelSpecManager.allowed_kernelspecs is a Set filtered only `if
+      # self.allowed_kernelspecs:` — empty/falsy means no restriction, all
+      # discovered kernelspecs are used (verified against
+      # jupyter/jupyter_client's kernelspec.py). Previous list kept here,
+      # commented, for rollback — uncomment and set nfs.enabled back to
+      # false + kernelspecs.image back to its tag to revert:
       allowedKernels:
-      - python3
-      - r_kubernetes
-      - python_kubernetes
-      - python_tf_kubernetes
-      - scala_kubernetes
-      - spark_r_kubernetes
-      - spark_python_kubernetes
-      - spark_scala_kubernetes
-      - spark_python_operator
-      - pytorch-gpu-quarter
-      - pytorch-gpu-half
-      - pytorch-gpu-dedicated
-      - pytorch-gpu-quarter-vscode
-      - tf-gpu-quarter
-      - tf-gpu-half
-      - tf-gpu-dedicated
-      - tf-gpu-quarter-vscode
-      
+      # - python3
+      # - r_kubernetes
+      # - python_kubernetes
+      # - python_tf_kubernetes
+      # - scala_kubernetes
+      # - spark_r_kubernetes
+      # - spark_python_kubernetes
+      # - spark_scala_kubernetes
+      # - spark_python_operator
+      # - pytorch-gpu-quarter
+      # - pytorch-gpu-half
+      # - pytorch-gpu-dedicated
+      # - pytorch-gpu-quarter-vscode
+      # - tf-gpu-quarter
+      # - tf-gpu-half
+      # - tf-gpu-dedicated
+      # - tf-gpu-quarter-vscode
+
       defaultKernelName: python3
     kernelspecs:
-      image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.1.0
+      # MUST be empty while nfs.enabled is true below — see the nfs: comment.
+      # image: docker.io/vitu1/enterprise-gateway-kernelspecs:1.1.0
+      image: ""
       imagePullPolicy: Always
     nfs:
-      enabled: false
-      internalServerIPAddress: ""
+      # VERIFIED against charts/templates/deployment.yaml in
+      # https://github.com/vitu-mafeni/enterprise_gateway (the GitRepository
+      # this HelmRelease pulls from):
+      #   - No `path` key exists. The chart hardcodes the NFS volume path to
+      #     "/usr/local/share/jupyter/kernels" — the NFS server's export
+      #     must serve exactly that path (a SEPARATE export from
+      #     /srv/nfs/k8s used by nfs-subdir-external-provisioner — that one
+      #     is for dynamic per-PVC subdirectories and can't be reused here).
+      #     quota-api's own NFS volume
+      #     (deploy/k8s/06-deployment-quota-api.yaml in ui-ml-platform) must
+      #     use the identical server + path.
+      #   - CRITICAL: the chart's kernelspecs-seeding initContainer is gated
+      #     only on `kernelspecs.image` being set, independently of
+      #     nfs.enabled — but the pod's actual kernelspecs volume is an
+      #     if/elseif/else across nfs.enabled / kernelspecsPvc.enabled /
+      #     kernelspecs.image (only one gets defined). With both
+      #     nfs.enabled=true AND kernelspecs.image set, the initContainer
+      #     references a volume name that's never defined and the
+      #     Deployment is REJECTED by the API server. kernelspecs.image
+      #     must be emptied (done above) whenever nfs.enabled is true.
+      #   - Consequence: nothing seeds the built-in kernelspecs (python3,
+      #     pytorch-gpu-quarter, tf-gpu-half, etc.) onto the NFS export
+      #     automatically anymore. Seed it ONCE before/when flipping this
+      #     to true — see docs/requirements/custom-image-launch-deploy-steps.md
+      #     for the exact seed command and export setup.
+      #     quota_api's kernelspec_service.py only ever adds new
+      #     custom-<image_id> subdirectories alongside these.
+      #
+      # Still false here — flip to true only after the NFS export is
+      # provisioned and seeded.
+      enabled: true
+      internalServerIPAddress: "192.168.3.234"
     kernelspecsPvc:
       enabled: false
       name: enterprise-gateway-kernelspecs

@@ -336,7 +336,9 @@ data:
                   if selected:
                       kso_env = selected.get("kubespawner_override", {}).get("environment", {})
                       gw_name = kso_env.get("JUPYTER_GATEWAY_KERNEL_NAME", "")
-                      kernels = [gw_name] if gw_name else [_FALLBACK_KERNEL]
+                      gpu_kernels = [gw_name] if gw_name else [_FALLBACK_KERNEL]
+                      #kernels = [gw_name] if gw_name else [_FALLBACK_KERNEL]
+                      kernels = gpu_kernels + [k for k in _CPU_KERNELS if k not in gpu_kernels]
                       # Forward KERNEL_* vars from KSO (anything not computed below).
                       for _k, _v in kso_env.items():
                           if _k.startswith("KERNEL_"):
@@ -1250,10 +1252,23 @@ data:
                     async def _filtered_get_all_specs(self):
                         all_specs = await _orig(self)
                         filtered = {name: spec for name, spec in all_specs.items() if name in _wl}
+                        # KERNEL_DISPLAY_NAME relabels ONLY the selected GPU kernel
+                        # (JUPYTER_GATEWAY_KERNEL_NAME) with quota-api's own
+                        # friendlier profile name (e.g. "PyTorch GPU (Quarter -
+                        # 25%)") -- every other entry in `filtered` (the CPU
+                        # kernel(s) always added alongside it) must keep its OWN
+                        # kernelspec's display_name untouched. Before CPU kernels
+                        # were added to the whitelist, `filtered` only ever had
+                        # this one entry, so relabeling "all of filtered" was a
+                        # no-op-looking bug that only surfaced once a second
+                        # kernel joined the whitelist -- it silently renamed both
+                        # CPU kernels to the GPU profile's own display name too.
                         _dname = os.environ.get("KERNEL_DISPLAY_NAME", "")
-                        if _dname:
+                        _default_kernel = os.environ.get("JUPYTER_GATEWAY_KERNEL_NAME", "")
+                        if _dname and _default_kernel in filtered:
                             filtered = {
-                                name: {**spec, "spec": {**spec.get("spec", {}), "display_name": _dname}}
+                                name: ({**spec, "spec": {**spec.get("spec", {}), "display_name": _dname}}
+                                       if name == _default_kernel else spec)
                                 for name, spec in filtered.items()
                             }
                         return filtered
