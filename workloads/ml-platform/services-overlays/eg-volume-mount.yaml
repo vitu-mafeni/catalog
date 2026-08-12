@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-eg-kernelspecs
+  namespace: enterprise-gateway
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: vitu1/enterprise-gateway-kernelspecs:1.1.0
+          command: ["sh", "-c", "cp -rv /kernels/. /dest/ && echo SEED_DONE"]
+          volumeMounts:
+            - name: eg-kernelspecs
+              mountPath: /dest
+      volumes:
+        - name: eg-kernelspecs
+          nfs:
+            server: 192.168.3.234
+            path: /usr/local/share/jupyter/kernels

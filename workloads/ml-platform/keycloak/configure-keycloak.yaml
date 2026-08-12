@@ -42,7 +42,7 @@ metadata:
 data:
   # ---- Realm settings ----
   realm: "jupyterhub"
-  realm_display_name: "CNLab ML Platform"
+  realm_display_name: "CNLab AI Platform"
   realm_ssl_required: "none"           # "none" | "external" | "all"
   realm_access_token_lifespan: "3600"  # seconds
 

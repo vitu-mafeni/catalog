@@ -1,0 +1,130 @@
+# remote-dev-cache-warmer — node-local cache for code-server/ttyd
+#
+# Problem: kernel-pod.yaml.j2's provision-code-server/provision-ttyd init
+# containers re-download and reinstall code-server (via its own
+# install.sh) and ttyd from the internet into a fresh emptyDir on EVERY
+# pod start — first launch and restore alike, since restore reuses the
+# exact same pod template. That live network install is what leaves a
+# restored (or freshly launched) VS Code/terminal-enabled kernel pod
+# sitting in Init for minutes (confirmed from a real restore).
+#
+# Fix: this DaemonSet installs both, once, into a hostPath directory on
+# every node. provision-code-server/provision-ttyd then just `cp` from
+# that local cache (milliseconds) instead of hitting the network, with
+# the original curl-install kept as an automatic fallback for any node
+# this DaemonSet hasn't warmed yet (or isn't running on) — see
+# quota_api/eg_kernelspec_assets/kernel-pod.yaml.j2.
+#
+# No nodeSelector/affinity: unlike dcgm-exporter (GPU-only), kernel pods
+# with VS Code/terminal enabled can land on CPU-only nodes too (KERNEL_GPUS
+# can be "0" — see routers/gpu_profiles.py), so every schedulable node needs
+# the cache, not just GPU ones.
+#
+# Apply:
+#   kubectl apply -f remote-dev-cache-warmer.yaml
+#
+# Re-warm after bumping the pinned ttyd version below (code-server itself
+# is intentionally left unpinned here — matches kernel-pod.yaml.j2's
+# existing behavior of always installing whatever install.sh resolves as
+# latest, so the cache never serves an older version than a cache-miss
+# fallback would have fetched anyway):
+#   kubectl rollout restart daemonset/remote-dev-cache-warmer -n enterprise-gateway
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: remote-dev-cache-warmer
+  namespace: enterprise-gateway
+  labels:
+    app: remote-dev-cache-warmer
+spec:
+  selector:
+    matchLabels:
+      app: remote-dev-cache-warmer
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: remote-dev-cache-warmer
+    spec:
+      # Tolerate every taint (GPU no-schedule included) so this lands on
+      # every node a kernel pod could possibly land on, GPU or CPU-only.
+      tolerations:
+        - operator: Exists
+
+      # curlimages/curl's image runs as a non-root user by default, which
+      # can't create anything under /opt/remote-dev-cache once
+      # DirectoryOrCreate has made it root:root on the host — every write
+      # (starting with `mkdir` for code-server's own install prefix) fails
+      # "Permission denied", the script dies under `set -e`, and kubelet
+      # restarts the container forever without ever reaching `sleep
+      # infinity` or writing .ready (confirmed: this is why the warmer pods
+      # showed restarts instead of settling at 0). Force root explicitly —
+      # this is a fully platform-internal DaemonSet that only ever writes
+      # two small binaries onto local node disk, not a multi-tenant
+      # workload, so there's no meaningful security cost to it.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+
+      containers:
+        - name: warmer
+          image: docker.io/curlimages/curl:8.11.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              CACHE=/cache
+              export HOME=/tmp
+              mkdir -p "$CACHE"
+
+              if [ ! -x "$CACHE/code-server/bin/code-server" ]; then
+                echo "remote-dev-cache-warmer: installing code-server into $CACHE ..."
+                curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 https://code-server.dev/install.sh \
+                  | sh -s -- --method=standalone --prefix="$CACHE/code-server"
+              else
+                echo "remote-dev-cache-warmer: code-server already cached, skipping."
+              fi
+
+              if [ ! -x "$CACHE/ttyd" ]; then
+                echo "remote-dev-cache-warmer: installing ttyd into $CACHE ..."
+                # -L required: GitHub Releases asset URLs 302-redirect to an
+                # S3-backed URL — see kernel-pod.yaml.j2's provision-ttyd
+                # comment for the incident this guards against.
+                curl -sSfkL --retry 5 --retry-all-errors --retry-delay 2 \
+                  -o "$CACHE/ttyd" https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+                chmod 755 "$CACHE/ttyd"
+              else
+                echo "remote-dev-cache-warmer: ttyd already cached, skipping."
+              fi
+
+              # Written last, only once both installs above have actually
+              # succeeded — kernel-pod.yaml.j2's init containers key their
+              # cache-hit path off this file's existence alone, so it must
+              # never appear before the binaries it vouches for are real.
+              touch "$CACHE/.ready"
+              echo "remote-dev-cache-warmer: cache warm, idling."
+              exec sleep infinity
+          volumeMounts:
+            - name: remote-dev-cache
+              mountPath: /cache
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          # No liveness/readiness probe — a slow/failed install just leaves
+          # .ready absent, which kernel-pod.yaml.j2's init containers
+          # already treat as "fall back to the network install", so there's
+          # nothing a probe restart would improve here (restarting mid
+          # install.sh only wastes the download).
+
+      volumes:
+        - name: remote-dev-cache
+          hostPath:
+            path: /opt/remote-dev-cache
+            type: DirectoryOrCreate
