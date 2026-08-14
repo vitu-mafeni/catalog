@@ -9,6 +9,7 @@ metadata: # kpt-merge: stateful-migration/checkpoint-backup-controller
     app.kubernetes.io/component: controller
   annotations:
     internal.kpt.dev/upstream-identifier: 'apps|DaemonSet|stateful-migration|checkpoint-backup-controller'
+    argocd.argoproj.io/sync-options: "Replace=true"
 spec:
   selector:
     matchLabels:

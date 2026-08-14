@@ -38,6 +38,8 @@ metadata:
   namespace: enterprise-gateway
   labels:
     app: remote-dev-cache-warmer
+  annotations:
+    argocd.argoproj.io/sync-options: "Replace=true"
 spec:
   selector:
     matchLabels:

@@ -1,11 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata: # kpt-merge: /jhub-ns
-  name: jhub-ns
-  annotations:
-    internal.kpt.dev/upstream-identifier: '|Namespace|default|jhub-ns'
----
-apiVersion: v1
 kind: ConfigMap
 metadata: # kpt-merge: jhub-ns/jhub-values
   name: jhub-values
