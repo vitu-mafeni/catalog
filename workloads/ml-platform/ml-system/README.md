@@ -167,42 +167,37 @@ the next time a pod restarts for any reason.
 ## kpt package / PackageVariant
 
 This directory is also a [kpt](https://kpt.dev) package (`Kptfile` +
-`package-context.yaml` + `apply-replacements.yaml` + `starlark-run.yaml`) so a
-Porch `PackageVariant` can use it as an upstream template and render one
-downstream variant per target cluster/environment, substituting that
-cluster's IPs/hostnames/namespaces/image tags without hand-editing every
-numbered file — with the override values living directly, inline, in the
-`PackageVariant`'s own `spec`, no separate object to pre-create.
+`# kpt-set:` comments on every overridable value) so a Porch `PackageVariant`
+can use it as an upstream template and render one downstream variant per
+target cluster/environment, substituting that cluster's IPs/hostnames/
+namespaces/image tags without hand-editing every numbered file — with the
+override values living directly, inline, in the `PackageVariant`'s own
+`spec`, no separate object to pre-create.
 
-- **`Kptfile`** — declares the package and its two-step pipeline:
-  `apply-replacements` runs first, then `starlark`.
-- **`package-context.yaml`** — the standard kpt "package context" file: a
-  well-known `ConfigMap` named `kptfile.kpt.dev` that kpt tooling normally
-  auto-populates with just the package's own name (`data.name`). This package
-  also uses it to carry the committed DEFAULT values for everything a
-  `PackageVariant` can override — a `PackageVariant`'s `spec.packageContext.data`
-  **merges** directly into this exact ConfigMap's `data` (confirmed in
-  `kptdev/porch`'s `ensurePackageContext`, which runs *before* the pipeline
-  executes) — so overriding one key never disturbs the rest.
-- **`apply-replacements.yaml`** — an `ApplyReplacements` functionConfig, one
-  `source`/`targets` entry per key, propagating each
-  `ConfigMap/kptfile.kpt.dev` → `data.<KEY>` field into `starlark-run.yaml`'s
-  `StarlarkRun` → `params.<KEY>`.
-- **`starlark-run.yaml`** — a `StarlarkRun` functionConfig (`source` and
-  `params` are TOP-LEVEL fields — there is no `spec:` wrapper). `source` is a
-  GENERIC substitution script: for every `ConfigMap` in the package, any
-  `data` key matching a `params` name gets that key's value replaced (plus
-  two special cases: `Deployment` image tags via `QUOTA_API_IMAGE`/
-  `FRONTEND_IMAGE`, and `Ingress` hosts via `PORTAL_HOST`/`API_HOST`).
-  `Secret` resources are never touched — real credentials stay out of this
-  GitOps package entirely (see "Required Secrets" above).
+- **`Kptfile`** — declares the package and its single-step pipeline:
+  `apply-setters`, configured with an empty `configMap: {}` by default (a
+  safe no-op — see below).
+- **Every overridable value, across `02-configmap-quota-api.yaml`,
+  `03-configmap-frontend.yaml`, `04-rbac-quota-api.yaml`,
+  `06-deployment-quota-api.yaml`, `08-deployment-frontend.yaml`, and
+  `10-ingress.yaml`**, carries a `# kpt-set: ${NAME}` comment right next to
+  its committed default value
+  (e.g. `GRAFANA_URL: "http://192.168.3.234:32300" # kpt-set: ${GRAFANA_URL}`).
+  Some names appear on more than one line by design — `EG_NAMESPACE` also
+  tags the two `namespace: enterprise-gateway` RBAC objects in
+  `04-rbac-quota-api.yaml`, and `KERNELSPECS_PVC_PATH` also tags the
+  Deployment's matching `volumeMounts[].mountPath`, so overriding either
+  value updates every place that has to agree with it, not just the env var.
+  `apply-setters` finds every such comment across the whole package and
+  replaces the value in front of it with whatever's supplied for that setter
+  name — wherever it appears, in whichever file. Setter names match the env
+  var / config key names 1:1 for direct traceability.
 
-Since the `starlark` script only replaces a key when it's present in
-`params`, ANY ConfigMap data key already in this package is overridable just
-by adding that exact key to all three files (`package-context.yaml`,
-`apply-replacements.yaml`, `starlark-run.yaml`'s `params`) — no script
-changes needed, as long as it's a real (uncommented) YAML key already in the
-target ConfigMap.
+Since a setter only changes something when its name is actually supplied,
+`kpt fn render deploy/k8s` with the Kptfile's committed empty `configMap: {}`
+is a safe no-op — every value stays exactly what's written. Making a new
+value settable is a one-line change: add `# kpt-set: ${NAME}` next to it, no
+other file needs to change.
 
 ### Test locally (no Porch/cluster needed)
 
@@ -210,40 +205,56 @@ target ConfigMap.
 kpt fn render deploy/k8s
 ```
 
-Re-runs the pipeline in place using the checked-in defaults — idempotent,
-safe to run repeatedly, and a good way to confirm the package still renders
-before wiring up a real PackageVariant.
+### Why not Starlark/ApplyReplacements (both tried first)
+
+Two earlier designs in this package's history didn't survive contact with a
+real render — both replaced here by `apply-setters`, kept for the record:
+
+1. **A custom `StarlarkRun` + `ApplyReplacements` sourcing from a separate
+   injected `ConfigMap`** (`spec.injectors`) — worked, but injection only
+   supports wholesale replacement of a `ConfigMap`'s entire `data` (confirmed
+   in `kptdev/porch`'s `injection.go`), requires a second real object
+   pre-created in the `PackageVariant`'s own namespace, and the controller
+   doesn't watch that object for changes (`packagevariant_controller.go`'s
+   `SetupWithManager` only watches `PackageVariant` and `PackageRevision`) —
+   so a value change needed a manual "touch the PackageVariant to force a
+   resync" step.
+2. **The same `ApplyReplacements`, sourcing from `spec.packageContext.data`**
+   (merged into the standard `ConfigMap/kptfile.kpt.dev`) — genuinely inline
+   in the `PackageVariant`, no second object. But `kpt`'s own built-in
+   `PackageContextGenerator` (`pkg/lib/builtins/pkg_context.go`) drops and
+   regenerates `ConfigMap/kptfile.kpt.dev` on **every** render, keeping only
+   `data.name` — any custom key placed there, whether by us or by
+   `packageContext.data`, is wiped before the package's own pipeline ever
+   runs. Confirmed by an actual render failure: `fieldPath data.KEYCLOAK_BASE_URL
+   is missing for replacement source ConfigMap.../kptfile.kpt.dev`.
+
+`apply-setters` sidesteps both problems: its functionConfig is a plain
+`ConfigMap` (so `PackageVariant.spec.pipeline.mutators[].configMap` can
+supply it inline, no separate object), and it doesn't touch
+`ConfigMap/kptfile.kpt.dev` at all, so kpt's built-in generator can't
+interfere with it.
 
 ### PackageVariant example
 
-Verified against `kptdev/porch`'s actual Go source — not guessed:
+Verified against `kptdev/porch`'s actual Go source:
 
 - `apiVersion: config.porch.kpt.dev/v1alpha1` for `PackageVariant`
   (`api/porchconfig/v1alpha1/packagevariant_types.go`).
 - `spec.upstream.revision` is the upstream package's **numeric Porch revision**
   (`int`), not a git ref/tag.
-- `spec.packageContext.data` (a plain `map[string]string`) is copied — via
-  `maps.Copy(data, pv.Spec.PackageContext.Data)` in
-  `ensurePackageContext` — into the EXISTING `data` of
-  `ConfigMap/kptfile.kpt.dev` (found by `getFileKubeObject(prr,
-  "package-context.yaml", "ConfigMap", "kptfile.kpt.dev")`). That's a real
-  merge, not a wholesale replace — a `PackageVariant` only needs to list the
-  keys it's actually changing; everything else keeps `package-context.yaml`'s
-  committed default. (`spec.packageContext.removeKeys` is also available, to
-  delete a key entirely rather than override it.)
-- Execution order in the controller's `Reconcile` (confirmed directly):
-  `ensurePackageContext` → `ensureKRMFunctions` → `ensureConfigInjection` —
-  so by the time the package's own pipeline (`apply-replacements` → `starlark`)
-  actually runs, `kptfile.kpt.dev`'s `data` already reflects any
-  `packageContext.data` override.
-- This is genuinely simpler than the native `spec.injectors` mechanism (which
-  we tried first): injectors only support wholesale replacement of a
-  `ConfigMap`'s *entire* `data` field or a resource's *entire* `spec`
-  (`injection.go`'s `allowedInjectionFields`), require a second, separately
-  pre-created real object in the `PackageVariant`'s own namespace, and the
-  controller doesn't even watch that object for changes. `packageContext.data`
-  needs none of that — the values live directly in the `PackageVariant` you
-  already have to author and apply.
+- `Function.ConfigMap map[string]string` (`kptdev/kpt`'s
+  `api/kptfile/v1/types.go`) is the inline shorthand: a mutator entry with
+  `configMap: {...}` builds a plain `ConfigMap` functionConfig on the fly —
+  exactly what `apply-setters` expects, so the setter values can be literal
+  key/value pairs directly in the `PackageVariant`'s own `spec`.
+- A `PackageVariant`'s own `spec.pipeline.mutators` are **prepended** to this
+  package's upstream pipeline (confirmed in `ensureKRMFunctions` — new
+  functions run first, then whatever the `Kptfile` already had), so this
+  mutator's real setter values apply first; the Kptfile's own trailing
+  `apply-setters` step (empty `configMap: {}`) then runs harmlessly — with no
+  setter values to supply, it changes nothing, so it never undoes what the
+  PackageVariant's step just set.
 
 ```yaml
 apiVersion: config.porch.kpt.dev/v1alpha1
@@ -258,50 +269,47 @@ spec:
   downstream:
     repo: ml-cluster-deploy     # target Porch/Git repo for rendered packages
     package: ml-platform-deploy
-  packageContext:
-    data:
-      # Only list keys this cluster needs different from
-      # package-context.yaml's committed default — every key omitted here
-      # keeps that default untouched. Shown below: this cluster's actual
-      # current values (redundant with the committed defaults right now —
-      # meaningful once a second/different target exists, or a value changes).
-      GRAFANA_URL: "http://192.168.3.234:32300"
-      CHECKPOINT_API_URL: "http://192.168.3.234:30829"
-      QUOTA_RESTORE_ALLOW_RESIZE: "false"
-      MODEL_ARTIFACT_STORAGE_CLASS: "nfs-csi"
-      HARBOR_BASE_URL: "http://10.9.0.13:30728"
-      HARBOR_VERIFY_TLS: "false"
-      HARBOR_ADMIN_USERNAME: "admin"
-      HARBOR_COPY_TIMEOUT_SECONDS: "10800"
-      NEXT_PUBLIC_QUOTA_API: "http://192.168.3.234:30082"
-      NEXT_PUBLIC_KC_URL: "http://192.168.3.234:30090"
+  pipeline:
+    mutators:
+      - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2.4
+        configMap:
+          # Only list setters this cluster needs different from the
+          # committed default next to each `# kpt-set:` comment — every
+          # setter omitted here leaves that default untouched. Shown below:
+          # this cluster's actual current values (redundant with the
+          # committed defaults right now — meaningful once a second/
+          # different target exists, or a value changes).
+          GRAFANA_URL: "http://192.168.3.234:32300"
+          CHECKPOINT_API_URL: "http://192.168.3.234:30829"
+          QUOTA_RESTORE_ALLOW_RESIZE: "false"
+          MODEL_ARTIFACT_STORAGE_CLASS: "nfs-csi"
+          HARBOR_BASE_URL: "http://10.9.0.13:30728"
+          HARBOR_VERIFY_TLS: "false"
+          HARBOR_ADMIN_USERNAME: "admin"
+          HARBOR_COPY_TIMEOUT_SECONDS: "10800"
+          NEXT_PUBLIC_QUOTA_API: "http://192.168.3.234:30082"
+          NEXT_PUBLIC_KC_URL: "http://192.168.3.234:30090"
+          EG_KERNELSPECS_NFS_SERVER: "192.168.3.234"
 ```
 
 That's the whole thing — one object, no companion `ConfigMap` to pre-create
 anywhere. `KEYCLOAK_BASE_URL`, `JUPYTERHUB_API_URL`, `EG_NAMESPACE`,
 `KERNELSPECS_PVC_PATH`, `KERNEL_SYNC_TIMEOUT_SECONDS`, `QUOTA_API_IMAGE`,
 `FRONTEND_IMAGE`, `PORTAL_HOST`, `API_HOST` are omitted above because they
-already match `package-context.yaml`'s committed default for this cluster —
-add any of them to `packageContext.data` the moment they need to differ.
+already match the committed default for this cluster — add any of them to
+`configMap` the moment they need to differ.
 
 Credentials (`HARBOR_ADMIN_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`,
-`JUPYTERHUB_API_TOKEN`, `QUOTA_API_TOKEN`) never belong in
-`packageContext.data` — it ends up as plain-text `ConfigMap` data inside the
-rendered package. They stay on the existing `01-secrets.example.yaml` /
+`JUPYTERHUB_API_TOKEN`, `QUOTA_API_TOKEN`) never belong in this `configMap` —
+it ends up as plain-text data inside the rendered package's `apply-setters`
+functionConfig. They stay on the existing `01-secrets.example.yaml` /
 `kubectl create secret` path, entirely independent of this `PackageVariant`.
 
-Rendering then flows: `packageContext.data` merges into
-`ConfigMap/kptfile.kpt.dev`'s `data` → `apply-replacements.yaml` copies each
-`data.<KEY>` into `starlark-run.yaml`'s `params.<KEY>` → the `starlark`
-mutator applies those params into `ml-backend-system-config`/
-`frontend-config`'s matching keys, the two Deployments' image tags, and the
-Ingress hosts.
-
-**If the values change later:** edit `spec.packageContext.data` on this same
-`PackageVariant` object and re-apply — that IS the object the controller
-watches (`For(&configapi.PackageVariant{})` in `SetupWithManager`), so a
-direct edit is picked up on its own; no extra "force resync" step needed
-(unlike the injector approach this replaced, which needed one).
+**If the values change later:** edit `spec.pipeline.mutators[].configMap` on
+this same `PackageVariant` object and re-apply — the controller watches the
+`PackageVariant` object directly (`For(&configapi.PackageVariant{})` in
+`SetupWithManager`), so a direct edit is picked up on its own; no manual
+"force resync" step needed.
 
 The exact Repository objects (`ui-ml-platform`, `ml-cluster-deploy` above)
 and how upstream/downstream repos are registered with Porch depend on your

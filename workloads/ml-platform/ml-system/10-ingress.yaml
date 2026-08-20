@@ -35,7 +35,7 @@ spec:
   #       - portal.CHANGE-ME.example.com
   #     secretName: ml-platform-tls
   rules:
-    - host: portal.CHANGE-ME.example.com
+    - host: portal.CHANGE-ME.example.com # kpt-set: ${PORTAL_HOST}
       http:
         paths:
           - path: /
@@ -61,7 +61,7 @@ spec:
   #       - api.CHANGE-ME.example.com
   #     secretName: ml-platform-tls
   rules:
-    - host: api.CHANGE-ME.example.com
+    - host: api.CHANGE-ME.example.com # kpt-set: ${API_HOST}
       http:
         paths:
           - path: /

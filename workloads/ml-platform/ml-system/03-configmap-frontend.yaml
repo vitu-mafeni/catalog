@@ -11,8 +11,8 @@ metadata:
   name: frontend-config
   namespace: jhub-ns
 data:
-  NEXT_PUBLIC_QUOTA_API: "http://CHANGE-ME:30082"
-  NEXT_PUBLIC_KC_URL: "http://CHANGE-ME:30090"
+  NEXT_PUBLIC_QUOTA_API: "http://CHANGE-ME:30082" # kpt-set: ${NEXT_PUBLIC_QUOTA_API}
+  NEXT_PUBLIC_KC_URL: "http://CHANGE-ME:30090" # kpt-set: ${NEXT_PUBLIC_KC_URL}
   NEXT_PUBLIC_KC_REALM: "jupyterhub"
   NEXT_PUBLIC_KC_CLIENT: "quota-admin-ui"
   # Optional — shows an "Advanced Monitoring" button in the admin Monitoring

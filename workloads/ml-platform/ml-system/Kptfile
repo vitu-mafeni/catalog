@@ -2,19 +2,25 @@
 #
 # Intended usage: a PackageVariant (Porch) uses this package as its upstream
 # and renders one downstream variant per target cluster/environment, by
-# setting spec.packageContext.data — which Porch MERGES directly into
-# package-context.yaml's ConfigMap/kptfile.kpt.dev before the pipeline below
-# runs. apply-replacements.yaml then propagates each of those (possibly
-# overridden) values into starlark-run.yaml's `params.<KEY>` before this
-# package's own `starlark` mutator runs. See README.md's "kpt package /
-# PackageVariant" section for exactly how, why (vs. hand-editing every
-# numbered file), and a full worked PackageVariant example.
+# setting spec.pipeline.mutators[].configMap on the apply-setters step below
+# — literal setter_name: value pairs, INLINE in the PackageVariant's own
+# spec, no separate object to pre-create. See README.md's "kpt package /
+# PackageVariant" section for the full story, including why the earlier
+# spec.packageContext.data design (tried first) doesn't work: kpt's own
+# built-in package-context generator drops and regenerates
+# ConfigMap/kptfile.kpt.dev on every render, keeping only data.name — any
+# custom keys placed there are wiped before the pipeline below ever runs.
+#
+# Every settable value is marked with a `# kpt-set: ${NAME}` comment directly
+# in 02-configmap-quota-api.yaml, 03-configmap-frontend.yaml,
+# 06-deployment-quota-api.yaml, 08-deployment-frontend.yaml, and
+# 10-ingress.yaml — apply-setters finds and replaces those, nothing else in
+# this package needs to change for a new value to become settable.
 #
 # Local testing (no Porch/cluster needed):
 #   kpt fn render deploy/k8s
-# This re-runs the pipeline in place using package-context.yaml /
-# starlark-run.yaml's checked-in defaults — safe to run repeatedly, the
-# substitution is idempotent (same values in, same output, every time).
+# Re-runs the pipeline in place with no overrides — a safe no-op, since every
+# setter comment's CURRENT value already matches what's committed.
 apiVersion: kpt.dev/v1
 kind: Kptfile
 metadata:
@@ -26,13 +32,9 @@ info:
     Secrets/ConfigMaps.
 pipeline:
   mutators:
-    # Both images/tags verified against ghcr.io/kptdev/krm-functions-catalog's
+    # Image/tag verified against ghcr.io/kptdev/krm-functions-catalog's
     # published tags (2026-08-20) — pin bumps should be tested with
     # `kpt fn render` before rolling forward.
-    - image: ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.6
-      configPath: apply-replacements.yaml
-      name: propagate-cluster-values
-    - image: ghcr.io/kptdev/krm-functions-catalog/starlark:v0.4.3
-      configPath: starlark-run.yaml
-      name: substitute-env-values
-
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-setters:v0.2.4
+      configMap: {}
+      name: apply-setters

@@ -35,7 +35,7 @@ spec:
       containers:
         - name: frontend
           # CUSTOMIZE: pin to a specific tag for production instead of `latest`.
-          image: ghcr.io/vitu-mafeni/ml-platform-frontend:latest
+          image: ghcr.io/vitu-mafeni/ml-platform-frontend:latest # kpt-set: ${FRONTEND_IMAGE}
           imagePullPolicy: Always
           ports:
             - name: http

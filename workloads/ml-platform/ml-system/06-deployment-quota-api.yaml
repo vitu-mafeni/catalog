@@ -43,7 +43,7 @@ spec:
           # `latest` can silently change under you on the next pod restart).
           # Note: the image repository name itself is unrelated to this
           # rename — it's a separate concern (image publishing), left as-is.
-          image: ghcr.io/vitu-mafeni/quota-api:latest
+          image: ghcr.io/vitu-mafeni/quota-api:latest # kpt-set: ${QUOTA_API_IMAGE}
           imagePullPolicy: Always
           ports:
             - name: http
@@ -94,7 +94,7 @@ spec:
               mountPath: /config
               readOnly: true
             - name: eg-kernelspecs
-              mountPath: /mnt/eg-kernelspecs
+              mountPath: /mnt/eg-kernelspecs # kpt-set: ${KERNELSPECS_PVC_PATH}
           readinessProbe:
             httpGet:
               path: /health
@@ -142,5 +142,5 @@ spec:
         # different directories.
         - name: eg-kernelspecs
           nfs:
-            server: "192.168.3.234"
+            server: "192.168.3.234" # kpt-set: ${EG_KERNELSPECS_NFS_SERVER}
             path: /usr/local/share/jupyter/kernels
