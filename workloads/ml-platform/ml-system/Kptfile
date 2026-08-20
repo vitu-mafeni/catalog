@@ -29,9 +29,9 @@ pipeline:
     # Both images/tags verified against ghcr.io/kptdev/krm-functions-catalog's
     # published tags (2026-08-20) — pin bumps should be tested with
     # `kpt fn render` before rolling forward.
-    - image: ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.6
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.1
       configPath: apply-replacements.yaml
       name: propagate-cluster-values
-    - image: ghcr.io/kptdev/krm-functions-catalog/starlark:v0.5.6
+    - image: ghcr.io/kptdev/krm-functions-catalog/starlark:v0.4.3
       configPath: starlark-run.yaml
       name: substitute-env-values
