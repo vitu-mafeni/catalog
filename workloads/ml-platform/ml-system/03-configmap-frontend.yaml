@@ -1,0 +1,21 @@
+# Frontend runtime config — read by frontend/docker-entrypoint.sh at
+# container startup and written into /app/public/env.js (window.__ENV),
+# which the browser bundle reads instead of build-time values. Changing
+# these values only requires a pod restart, never an image rebuild.
+#
+# CUSTOMIZE: these must be URLs reachable from the USER'S BROWSER, not
+# cluster-internal DNS (unlike quota-api's ConfigMap).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: jhub-ns
+data:
+  NEXT_PUBLIC_QUOTA_API: "http://CHANGE-ME:30082"
+  NEXT_PUBLIC_KC_URL: "http://CHANGE-ME:30090"
+  NEXT_PUBLIC_KC_REALM: "jupyterhub"
+  NEXT_PUBLIC_KC_CLIENT: "quota-admin-ui"
+  # Optional — shows an "Advanced Monitoring" button in the admin Monitoring
+  # section (e.g. a Grafana folder/dashboard URL, or any other external
+  # monitoring tool). Omit this key entirely to hide the button.
+  # NEXT_PUBLIC_ADMIN_EXTERNAL_MONITORING: "http://CHANGE-ME:32300/dashboards"

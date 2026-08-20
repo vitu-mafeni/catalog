@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: jhub-ns
+  labels:
+    app: frontend
+spec:
+  # CUSTOMIZE: switch to ClusterIP if exposing exclusively through the
+  # Ingress below.
+  type: NodePort
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+      nodePort: 30083

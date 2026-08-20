@@ -1,0 +1,26 @@
+# ClusterIP-reachable for other in-cluster services (e.g. the JupyterHub
+# spawn hooks call quota-api over cluster DNS — note quota-api now lives in
+# "ml-backend-system", a DIFFERENT namespace than the Hub, so callers there
+# must use the fully-qualified form
+# http://ml-backend-system.ml-backend-system.svc.cluster.local:8000, not the
+# same-namespace short name) plus a NodePort so the admin panel's browser
+# (and anything outside the cluster) can reach it directly.
+#
+# CUSTOMIZE: switch `type: NodePort` to `type: ClusterIP` if you're exposing
+# quota-api exclusively through the Ingress below instead of a NodePort.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-backend-system
+  namespace: ml-backend-system
+  labels:
+    app: ml-backend-system
+spec:
+  type: NodePort
+  selector:
+    app: ml-backend-system
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      nodePort: 30082

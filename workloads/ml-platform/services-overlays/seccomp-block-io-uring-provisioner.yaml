@@ -1,0 +1,138 @@
+# seccomp-block-io-uring-provisioner — node-local seccomp profile for
+# CRIU-checkpointable VS Code kernels
+#
+# Problem: kernel-pod.yaml.j2 gives every VS Code-enabled kernel pod a
+# custom Localhost seccomp profile (block-io-uring.json) that denies the
+# io_uring syscalls — code-server's bundled Node/libuv otherwise mmaps an
+# io_uring instance at startup that CRIU cannot checkpoint at all
+# (proc_parse.c: "Unknown shit 600", aborts the whole checkpoint — see that
+# template's own comment for the full incident history). Kubernetes never
+# distributes Localhost seccomp profiles itself — the JSON file must
+# already exist on a node's kubelet seccomp root BEFORE any pod requesting
+# it is scheduled there, or the pod fails outright with "unable to load
+# local profile ... no such file or directory" (a deliberate fail-closed
+# design — see the template comment — never silently Unconfined). A node
+# that never got this file placed on it manually breaks the very first
+# VS Code kernel launch scheduled there (confirmed: this is exactly what
+# happened on a real node, dcn-gpu-0, that joined without it).
+#
+# Fix: this DaemonSet writes block-io-uring.json onto every node's kubelet
+# seccomp profile root directly (no network dependency — the file is a
+# short static JSON, not something to download), so a fresh/re-provisioned
+# node self-heals without a manual copy step. Mirrors
+# remote-dev-cache-warmer.yaml's own DaemonSet shape and reasoning
+# (blanket toleration, hostPath write, idle via `sleep infinity`) — reuses
+# its exact image too, so nodes already running that warmer don't pull a
+# second one just for this.
+#
+# No nodeSelector/affinity: same reasoning as remote-dev-cache-warmer — a
+# VS Code-enabled kernel can land on a CPU-only node just as easily as a
+# GPU one (KERNEL_GPUS can be "0"), so every schedulable node needs this,
+# not just GPU ones.
+#
+# Verify your kubelet's actual seccomp root before applying if this
+# cluster customizes --root-dir (default /var/lib/kubelet, giving
+# /var/lib/kubelet/seccomp/profiles/ — confirmed via `ps aux | grep
+# kubelet` showing no --root-dir override is the default case):
+#   ps aux | grep kubelet | grep -o -- '--root-dir=[^ ]*'
+#
+# Apply:
+#   kubectl apply -f seccomp-block-io-uring-provisioner.yaml
+#
+# Re-provision after editing the profile's syscall list below:
+#   kubectl rollout restart daemonset/seccomp-block-io-uring-provisioner -n enterprise-gateway
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: seccomp-block-io-uring-provisioner
+  namespace: enterprise-gateway
+  labels:
+    app: seccomp-block-io-uring-provisioner
+spec:
+  selector:
+    matchLabels:
+      app: seccomp-block-io-uring-provisioner
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: seccomp-block-io-uring-provisioner
+    spec:
+      # Tolerate every taint (GPU no-schedule included) so this lands on
+      # every node a VS Code-enabled kernel pod could possibly land on.
+      tolerations:
+        - operator: Exists
+
+      # Writing into /var/lib/kubelet/... requires root — same reasoning
+      # as remote-dev-cache-warmer's identical override (DirectoryOrCreate
+      # makes the hostPath root:root on the host; a non-root default user
+      # can't write under it).
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+
+      containers:
+        - name: provisioner
+          image: docker.io/curlimages/curl:8.11.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              PROFILE_DIR=/seccomp-profiles
+              PROFILE_PATH="$PROFILE_DIR/block-io-uring.json"
+              mkdir -p "$PROFILE_DIR"
+
+              # Always (re)write — this is a few bytes, not a network
+              # install, so there's no meaningful cost to keeping it
+              # current on every DaemonSet rollout rather than only
+              # writing it once. defaultAction ALLOW keeps every other
+              # syscall (including CUDA/GPU ioctls) completely
+              # unrestricted; only the three io_uring syscalls are denied,
+              # with ENOSYS (38) specifically — not KILL — so libuv sees
+              # exactly what it sees on a pre-5.1 kernel that never had
+              # io_uring at all, and falls back gracefully instead of the
+              # process crashing.
+              cat > "$PROFILE_PATH" <<'EOF'
+              {
+                "defaultAction": "SCMP_ACT_ALLOW",
+                "architectures": ["SCMP_ARCH_X86_64", "SCMP_ARCH_X86", "SCMP_ARCH_X32"],
+                "syscalls": [
+                  {
+                    "names": ["io_uring_setup", "io_uring_enter", "io_uring_register"],
+                    "action": "SCMP_ACT_ERRNO",
+                    "errnoRet": 38
+                  }
+                ]
+              }
+              EOF
+
+              echo "seccomp-block-io-uring-provisioner: wrote $PROFILE_PATH, idling."
+              exec sleep infinity
+          volumeMounts:
+            - name: kubelet-seccomp-profiles
+              mountPath: /seccomp-profiles
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          # No liveness/readiness probe — same reasoning as
+          # remote-dev-cache-warmer: nothing a probe-triggered restart
+          # would improve for a write that either already succeeded (the
+          # common case, instant) or failed under `set -e` and is already
+          # visible as CrashLoopBackOff without one.
+
+      volumes:
+        - name: kubelet-seccomp-profiles
+          hostPath:
+            # Default kubelet --root-dir is /var/lib/kubelet, giving
+            # <root-dir>/seccomp/profiles/ as the Localhost profile root —
+            # update this path first if any node in this cluster overrides
+            # --root-dir (see this file's header comment for how to check).
+            path: /var/lib/kubelet/seccomp/profiles
+            type: DirectoryOrCreate

@@ -40,3 +40,4 @@ spec:
     storageClass:
       name: nfs-csi
       defaultClass: false
+      allowVolumeExpansion: true

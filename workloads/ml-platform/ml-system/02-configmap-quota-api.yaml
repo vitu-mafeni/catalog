@@ -1,0 +1,150 @@
+# Non-sensitive quota-api configuration. Every value here is safe to read by
+# anyone with cluster access — actual credentials live in 01-secrets.yaml
+# (see quota_api/config.py for the full list of env vars this service reads).
+#
+# CUSTOMIZE: every value below is specific to one cluster. Update the URLs/
+# namespaces/GPU VRAM to match your environment before applying.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-backend-system-config
+  namespace: ml-backend-system
+data:
+  # Keycloak — internal cluster DNS keeps the Hub↔Keycloak traffic in-cluster.
+  KEYCLOAK_BASE_URL: "http://keycloak.keycloak.svc.cluster.local:8080"
+  KEYCLOAK_REALM: "jupyterhub"
+  KEYCLOAK_ADMIN_USER: "admin"
+
+  # JupyterHub — internal cluster DNS for the Hub API. Fully-qualified with
+  # the jhub-ns namespace since quota-api runs in ml-backend-system now, a
+  # different namespace than the Hub itself. (There is no separate
+  # JUPYTERHUB_BASE_URL key — config.py derives the browser-facing Hub URL by
+  # stripping "/hub/api" off JUPYTERHUB_API_URL; a standalone
+  # JUPYTERHUB_BASE_URL env var is never read.)
+  JUPYTERHUB_API_URL: "http://hub.jhub-ns.svc.cluster.local:8081/hub/api"
+
+  # Namespaces quota-api queries via the Kubernetes API for pod/kernel state.
+  # QUOTA_API_NAMESPACE is quota-api's OWN namespace (prepull_service.py's
+  # node-warming Jobs run here) — distinct from JHUB_NAMESPACE (JupyterHub +
+  # frontend + singleuser pods) and EG_NAMESPACE (Enterprise Gateway).
+  QUOTA_API_NAMESPACE: "ml-backend-system"
+  JHUB_NAMESPACE: "jhub-ns"
+  EG_NAMESPACE: "enterprise-gateway"
+
+  # SQLite path — must match the PVC mountPath in the Deployment.
+  DB_PATH: "/data/quota.db"
+
+  # Shared kernelspecs volume — kernelspec_service.py writes a new EG
+  # kernelspec directory here per custom image (see Image Management),
+  # making it launchable without an EG image rebuild/redeploy. Must match
+  # the eg-kernelspecs volume mountPath in the Deployment below, AND the
+  # same NFS server+path configured in docs/jhub_eg_keycloak/eg-values.yaml's
+  # `nfs:` block (EG mounts the identical export). Leave unset (omit this
+  # key) until that NFS export actually exists — kernelspec_service.py
+  # degrades to a logged warning rather than failing image import/create.
+  KERNELSPECS_PVC_PATH: "/mnt/eg-kernelspecs"
+
+  # Model saving + vLLM serving. Every user gets their OWN artifact PVC,
+  # named "MODEL_ARTIFACT_PVC_PREFIX-{username}" and created automatically
+  # by quota-api on that user's first save (see
+  # model_artifact_service.py's _ensure_user_pvc) — no manual PVC to apply.
+  #
+  # CHANGE-ME: MODEL_ARTIFACT_STORAGE_CLASS is REQUIRED — set it to an
+  # RWX-capable StorageClass that exists in your cluster (nfs-client,
+  # rook-ceph-cephfs, longhorn, ...) — NOT local-path, which is node-pinned
+  # and would defeat the whole point of a serving Deployment that isn't tied
+  # to one node. Saving a model fails with a clear error until this is set.
+  MODEL_ARTIFACT_STORAGE_CLASS: "nfs-csi"
+  MODEL_ARTIFACT_PVC_PREFIX: "model-artifacts"
+  # Default size (GiB) for a newly-created per-user PVC — an admin can set a
+  # per-user override instead via the Concurrent Server Limits / Quota
+  # Overrides admin panel (max_model_storage_gi). Raising a user's quota
+  # after their PVC already exists requires expanding that PVC via the
+  # Storage admin page, same as any other PVC.
+  MODEL_ARTIFACT_DEFAULT_SIZE_GI: "50"
+  MODEL_ARTIFACT_COPY_TIMEOUT_SECONDS: "3600"
+  VLLM_SERVING_PORT: "8000"
+  VLLM_READY_TIMEOUT_SECONDS: "1200"
+
+  # GPU VRAM per card in MB, used to compute KERNEL_GPU_MEMORY for GPU
+  # profiles. CUSTOMIZE to match your GPU nodes (24576 = 24GB, 81920 = 80GB
+  # A100). Leave unset (omit this key) to auto-discover live from the
+  # cluster instead — see config.py's GPU_VRAM_MB comment.
+  GPU_VRAM_MB: "24576"
+
+  # Monitoring stack endpoints (optional — omit if not using the bundled
+  # kube-prometheus-stack). Release name assumed: prometheus.
+  ALERTMANAGER_URL: "http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093"
+  PROMETHEUS_URL: "http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
+  GRAFANA_URL: "http://192.168.3.234:32300"
+
+  # Checkpoint/restore service (stateful-migration checkpoint-apiserver).
+  CHECKPOINT_API_URL: "http://192.168.3.234:30829"
+
+  # Scheduled-checkpoint CRD (routers/checkpoints.py's /checkpoints/scheduled
+  # endpoints, backed by the stateful-migration-operator's CheckpointBackup
+  # CRD) — quota-api needs cluster RBAC for this exact group/version/plural
+  # (see 04-rbac-quota-api.yaml). Defaults below match the operator's real CRD;
+  # only uncomment/change if your cluster's CRD genuinely differs.
+  # CHECKPOINT_CRD_GROUP: "migration.dcnlab.com"
+  # CHECKPOINT_CRD_VERSION: "v1"
+  # CHECKPOINT_CRD_PLURAL: "checkpointbackups"
+
+  # Phase C (checkpoint-restore-gpu-decoupling-design.md §5.6): allow a
+  # restore to request a DIFFERENT GPU allocation than the checkpoint's
+  # original sizing (requested_fraction on POST .../restore). Off by default
+  # in quota_api/config.py — without this, any resize attempt is rejected
+  # with a 403 rather than silently keeping the checkpoint's original size.
+  QUOTA_RESTORE_ALLOW_RESIZE: "false"
+
+  # Harbor registry auto-seed/robot-bootstrap (harbor_bootstrap.py) — lets the
+  # admin's "Add Registry" UI flow provision Harbor robot accounts instead of
+  # requiring one to be created by hand first. Entirely optional: leave
+  # HARBOR_BASE_URL empty (the default) to skip this feature — the UI's Add
+  # Registry flow still works with manually-supplied credentials either way.
+  HARBOR_BASE_URL: "http://10.9.0.13:30728"
+  # HARBOR_REGISTRY_NAME: "Harbor"
+  HARBOR_VERIFY_TLS: "false"
+  # If HARBOR_USERNAME below is set, quota-api uses that robot account
+  # directly; otherwise it falls back to HARBOR_ADMIN_USERNAME (paired with
+  # the harbor-admin-password Secret key) to create one on demand.
+  # HARBOR_USERNAME: ""
+  HARBOR_ADMIN_USERNAME: "admin"
+  HARBOR_COPY_TIMEOUT_SECONDS: "10800"
+  # HARBOR_SECRET and HARBOR_ADMIN_PASSWORD are credentials — set them in the
+  # Secret (01-secrets.example.yaml) and reference via secretKeyRef in
+  # 06-deployment-quota-api.yaml, never here.
+
+  # Advanced tuning — all have working defaults in quota_api/config.py;
+  # uncomment only if a real deployment needs a different value.
+  KERNEL_SYNC_TIMEOUT_SECONDS: "21600"   # "Sync to Home" tar-stream deadline (6h default); bump if large real transfers still time out
+  # MONITORING_NAMESPACE: "monitoring"     # namespace deleted+resynced by "Recover Dashboards" — must match 04-rbac-quota-api.yaml's resourceNames pin
+  # GPU_OPERATOR_NAMESPACE: "gpu-operator"
+  # RESTORE_GRANT_TTL_SECONDS: "90"
+  # RESTORE_PROVISION_POLL_SECONDS: "20"
+  # RESTORE_PROVISION_TIMEOUT_SECONDS: "1800"
+  # RESTORE_SERVER_SPAWN_POLL_SECONDS: "5"
+  # RESTORE_SERVER_SPAWN_TIMEOUT_SECONDS: "300"
+  # NODE_PROVISION_ETA_MINUTES_DEFAULT: "10"
+  # HAMI_CORE_SCALE: "100"
+
+  # Frontend UI tuning served at GET /ui-config (public, non-sensitive) —
+  # deep-merged onto the frontend's compiled defaults, see
+  # frontend/lib/uiConfig.ts for the schema. Points at the mounted
+  # ConfigMap below; edits apply live once kubelet syncs the mount, no
+  # restart needed.
+  UI_CONFIG_FILE: "/config/ui-config.json"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-backend-system-ui-config
+  namespace: ml-backend-system
+data:
+  ui-config.json: |
+    {
+      "polling": {
+        "spawnTimeoutMs": 300000
+      }
+    }

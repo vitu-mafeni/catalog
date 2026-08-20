@@ -1,0 +1,21 @@
+# Namespace for the frontend + JupyterHub deployment. Idempotent — safe to
+# apply even if this namespace already exists (e.g. created separately by
+# the JupyterHub Helm release, which uses this same "jhub-ns" namespace).
+#
+# If your JupyterHub deployment already creates this namespace, you can skip
+# this file entirely — `kubectl apply` on an existing namespace is a no-op.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jhub-ns
+---
+# quota-api's OWN namespace — separate from jhub-ns (frontend + JupyterHub).
+# quota-api still needs to reach the Hub API/Keycloak in jhub-ns and Harbor
+# externally; there's no NetworkPolicy in this repo restricting cross-
+# namespace traffic, but if your cluster enforces one elsewhere, quota-api's
+# namespace will need an explicit egress allow to jhub-ns (Hub API/Keycloak)
+# and to enterprise-gateway (kernel launches).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-backend-system

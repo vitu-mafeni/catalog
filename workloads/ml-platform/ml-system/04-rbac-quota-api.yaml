@@ -1,0 +1,324 @@
+# ServiceAccount + RBAC for quota-api's own Kubernetes API calls (k8s.py,
+# routers/nodes.py, routers/storage.py, routers/dashboard.py). quota-api
+# itself, and its own ServiceAccount, live in the "ml-backend-system"
+# namespace — separate from "jhub-ns" (JupyterHub + frontend) and
+# "enterprise-gateway" (EG), both of which quota-api still reaches over
+# in-cluster DNS/the Kubernetes API as needed.
+#   nodes:            list/get (inventory), patch (cordon/uncordon), delete (remove node)
+#   pods:             list/get across namespaces (workloads view), delete (force-delete)
+#   events:           list (k8s.py's pod_pending_reason() FailedScheduling fallback —
+#                     without this, the event-based "why is this pod Pending" lookup
+#                     403s silently and the pending-resource notification never fires)
+#   PVCs:             list/get (storage view), patch (expand), delete (admin removal)
+#   storageclasses:   get/list (provisioner info), patch (enable allowVolumeExpansion)
+#   metrics.k8s.io:   node/pod usage for the dashboard
+#   batch/jobs:       create/get/list/watch/delete (prepull_service.py's one-Job-per-node
+#     image pre-pull, run in quota-api's own namespace) — without this,
+#     create_namespaced_job 403s and is silently swallowed by
+#     prepull_image()'s bare except, so the UI reports "Pre-pulling to
+#     N node(s)…" while no Job is ever actually created on the cluster.
+#   secrets/nodeprovisions (namespace "default" only): node-provisioning credentials —
+#     deliberately namespace-scoped, quota-api must NOT read/write Secrets cluster-wide.
+#   namespaces:       get/create (registry_pull_secret_service.py) — creates
+#     ml-backend-system/jhub-ns/enterprise-gateway if any doesn't exist yet, so
+#     provisioning the cluster imagePullSecret never silently no-ops on a
+#     fresh cluster. Namespace is itself cluster-scoped, so this can't be
+#     made namespace-local.
+#   resourceclaims:   get (k8s.py's _dra_gpu_allocation) — HAMi-DRA-scheduled
+#     kernel pods carry their real GPU allocation (cores %, VRAM) on their own
+#     ResourceClaim object, not on the pod itself (no annotation, no extended
+#     resource) — without this, that lookup 403s silently (best-effort,
+#     caught) and every DRA-scheduled kernel's GPU share falls back to a flat
+#     "1 GPU" regardless of the real fraction.
+# imagePullSecrets is declared here directly (not left to
+# registry_pull_secret_service.py's runtime patch alone) because that patch
+# only runs at quota-api startup or when a registry is created/updated via
+# the admin UI — if this ServiceAccount gets (re-)created afterward (a fresh
+# apply, a cluster reset, GitOps reconciling this file), there's a window
+# where the SA exists with no pull secret and nothing re-attaches it until
+# the next of those two triggers fires. Real incident: a newly-added custom
+# image's prepull Job hit ImagePullBackOff ("unauthorized to access
+# repository") because this exact race happened — the SA was created ~2
+# minutes before the prepull Job, after quota-api's last startup had already
+# run and logged "could not read ServiceAccount — has it been created yet?"
+# and given up. The runtime patch is harmless to keep (it also covers
+# rotation when the registry's credentials change), but the SA should never
+# depend on winning that race just to exist correctly from the start.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ml-backend-system
+  namespace: ml-backend-system
+imagePullSecrets:
+  - name: harbor-registry-pull
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ml-backend-system-cluster
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "patch", "delete"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    # monitoring_recovery.py's "Recover Dashboards" — deletes the entire
+    # `monitoring` namespace and force-syncs ArgoCD to rebuild it, the fix
+    # for dashboard ConfigMaps fighting a GitOps controller's selfHeal (see
+    # that module's docstring). resourceNames pins this to the literal
+    # string "monitoring" ONLY — deliberately not a wildcard delete on any
+    # namespace, and independent of the MONITORING_NAMESPACE env var actually
+    # matching (a mismatch there fails closed with 403, not an unintended delete).
+    resourceNames: ["monitoring"]
+    verbs: ["delete"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    # Same "Recover Dashboards" action — triggers a sync by patching the
+    # Application object's `.operation` field (what `argocd app sync` does
+    # under the hood). Cluster-scoped and unrestricted by name/namespace:
+    # this cluster is known to run exactly one Application, but its name is
+    # NOT fixed across environments, so it must be discoverable via `list`
+    # first (RBAC resourceNames can't restrict list/watch verbs anyway).
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications/status"]
+    # Separate rule required: Kubernetes RBAC treats a subresource as a
+    # distinct resource from its parent. monitoring_recovery.py's
+    # _terminate_in_progress_sync patches THIS (operationState.phase) to
+    # stop an already-running sync before starting a new one — the same
+    # thing `argocd app terminate-op` does.
+    verbs: ["patch"]
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["resourceclaims"]
+    verbs: ["get"]
+  - apiGroups: ["migration.dcnlab.com"]
+    resources: ["checkpointbackups"]
+    # routers/checkpoints.py's scheduled-checkpoint CRs (create_scheduled_checkpoint,
+    # list_scheduled_checkpoints, delete_scheduled_checkpoint) talk to this CRD
+    # directly via CustomObjectsApi, both namespaced AND cluster-wide (GET
+    # /checkpoints/scheduled with no namespace query param lists across all
+    # namespaces) — cluster-scoped for that reason. group/version/plural are
+    # overridable via CHECKPOINT_CRD_GROUP/_VERSION/_PLURAL (see ConfigMap) but
+    # default to migration.dcnlab.com/v1/checkpointbackups, matching the
+    # stateful-migration-operator CRD. No delete verb: cancelling a schedule
+    # patches spec.schedule to "paused" instead of deleting the CR (see that
+    # router's delete_scheduled_checkpoint docstring for why).
+    verbs: ["get", "list", "create", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    # kernel_sync_service.sync_kernel_to_server's "Sync to Home" action —
+    # streams a tar archive from a kernel pod (enterprise-gateway) straight
+    # into the singleuser server pod (jhub-ns) via two exec connections,
+    # the same primitive `kubectl exec`/`kubectl cp` use. "create" is the
+    # correct (if unintuitive) verb for the exec subresource — it's
+    # modeled as creating a new exec session, not reading/writing a
+    # resource. Cluster-scoped since both namespaces need it.
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ml-backend-system-cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ml-backend-system-cluster
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-backend-system-provisioning
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch", "delete"]
+  - apiGroups: ["ml.dcn.ssu.ac.kr"]
+    resources: ["nodeprovisions"]
+    verbs: ["get", "list", "watch", "create", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-backend-system-provisioning
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-backend-system-provisioning
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system
+---
+# Roles in "jhub-ns" and "enterprise-gateway": registry_pull_secret_service.py
+# provisions/refreshes a Harbor imagePullSecret in every namespace a custom
+# image might get pulled in (jhub-ns for singleuser pods, enterprise-gateway
+# for real EG kernel launches, plus quota-api's own ml-backend-system for its
+# prepull Jobs — granted below) and attaches it to the relevant ServiceAccount
+# there ("default" in jhub-ns, enterprise-gateway-sa in enterprise-gateway).
+# Namespace-scoped for the same reason ml-backend-system-provisioning above
+# is — no cluster-wide Secret access.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: jhub-ns
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: jhub-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-backend-system-pull-secret
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system
+---
+# Model saving + vLLM serving (model_artifact_service.py,
+# model_serving_service.py, routers/saved_models.py, routers/model_serving.py).
+# Runs in jhub-ns, not ml-backend-system: a Kubernetes pod can only mount
+# PVCs from its own namespace, and the copy Job must mount BOTH the source
+# claim-{username} PVC and the destination per-user artifact PVC
+# (f"{MODEL_ARTIFACT_PVC_PREFIX}-{username}", config.py) at once — both
+# therefore live in jhub-ns, and the vLLM serving Deployment that later
+# mounts that same artifact PVC must run there too.
+#   persistentvolumeclaims: get (existence checks — model_artifact_service._pvc_exists),
+#     create (quota-api creates each user's own artifact PVC on their FIRST
+#     save — model_artifact_service._ensure_user_pvc; the only place in this
+#     codebase that dynamically creates a PVC, unlike claim-{username} which
+#     KubeSpawner provisions)
+#   pods/pods.log:  get/list (find the copy Job's pod, read back its
+#     MODEL_ARTIFACT_RESULT stdout line — model_artifact_service._job_pod_log)
+#   batch/jobs:     create/get/list/watch/delete (the copy Job itself)
+#   apps/deployments, services: get/list/create/delete/patch (the vLLM
+#     serving Deployment+Service — model_serving_service.py)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-backend-system-model-serving
+  namespace: jhub-ns
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "create", "delete", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-backend-system-model-serving
+  namespace: jhub-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-backend-system-model-serving
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: enterprise-gateway
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: enterprise-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-backend-system-pull-secret
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system
+---
+# quota-api's OWN namespace also needs this Role — prepull_service.py's
+# node-warming Jobs run here now (see its module docstring), so the pull
+# secret/ServiceAccount attachment must be provisionable here too, not just
+# in jhub-ns/enterprise-gateway.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: ml-backend-system
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ml-backend-system-pull-secret
+  namespace: ml-backend-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ml-backend-system-pull-secret
+subjects:
+  - kind: ServiceAccount
+    name: ml-backend-system
+    namespace: ml-backend-system

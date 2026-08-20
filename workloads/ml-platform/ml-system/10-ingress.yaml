@@ -1,0 +1,73 @@
+# OPTIONAL — only needed if you're routing through an Ingress controller
+# instead of (or in addition to) the NodePort Services above. Written for
+# ingress-nginx; adjust `ingressClassName` and the annotation if you use a
+# different controller (Traefik, HAProxy, cloud LB controller, etc).
+#
+# TWO Ingress objects, not one — an Ingress backend `service.name` must live
+# in the SAME namespace as the Ingress resource itself (there's no
+# cross-namespace backend field in the core Ingress API). Since quota-api now
+# lives in "ml-backend-system" (a different namespace than the frontend's
+# "jhub-ns"), the single combined Ingress this used to be has to split into
+# one per namespace. ingress-nginx (and most controllers) merge rules from
+# every Ingress object across all namespaces into one shared routing table,
+# so this works exactly like the old single-Ingress setup from the outside.
+#
+# CUSTOMIZE before applying:
+#   - host: replace CHANGE-ME.example.com with your real domain(s)
+#   - tls: uncomment and point at a real cert-manager Issuer/Secret, or
+#     remove the tls: block entirely to serve plain HTTP
+#   - If you enable this, update frontend-config's NEXT_PUBLIC_QUOTA_API and
+#     the api-host below to match, and consider switching both Services
+#     (07-service-quota-api.yaml, 09-service-frontend.yaml) to type: ClusterIP
+#     since traffic no longer needs a NodePort once it's ingress-routed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-platform-frontend
+  namespace: jhub-ns
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  # tls:
+  #   - hosts:
+  #       - portal.CHANGE-ME.example.com
+  #     secretName: ml-platform-tls
+  rules:
+    - host: portal.CHANGE-ME.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ml-platform-api
+  namespace: ml-backend-system
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  # tls:
+  #   - hosts:
+  #       - api.CHANGE-ME.example.com
+  #     secretName: ml-platform-tls
+  rules:
+    - host: api.CHANGE-ME.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ml-backend-system
+                port:
+                  name: http

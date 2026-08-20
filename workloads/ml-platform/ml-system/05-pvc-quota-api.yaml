@@ -1,0 +1,20 @@
+# quota-api persists its state in a SQLite file (see quota_api/database.py).
+# SQLite does not support safe concurrent multi-writer access from multiple
+# pods — keep the Deployment at replicas: 1 (see 07-deployment-quota-api.yaml)
+# as long as this PVC-backed SQLite setup is in use. Migrating to a proper
+# server-backed database (Postgres/MySQL) is required before scaling
+# quota-api beyond one replica.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-backend-system-db
+  namespace: ml-backend-system
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+  # CUSTOMIZE: uncomment and set to a StorageClass that exists in your
+  # cluster if the default StorageClass isn't suitable (e.g. needs to be a
+  # specific replicated/backed-up class for production).
+  # storageClassName: standard

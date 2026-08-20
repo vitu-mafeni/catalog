@@ -1,0 +1,37 @@
+# kpt package for the frontend + quota-api manifests in this directory.
+#
+# Intended usage: a PackageVariant (Porch) uses this package as its upstream
+# and renders one downstream variant per target cluster/environment, by
+# setting spec.packageContext.data — which Porch MERGES directly into
+# package-context.yaml's ConfigMap/kptfile.kpt.dev before the pipeline below
+# runs. apply-replacements.yaml then propagates each of those (possibly
+# overridden) values into starlark-run.yaml's `params.<KEY>` before this
+# package's own `starlark` mutator runs. See README.md's "kpt package /
+# PackageVariant" section for exactly how, why (vs. hand-editing every
+# numbered file), and a full worked PackageVariant example.
+#
+# Local testing (no Porch/cluster needed):
+#   kpt fn render deploy/k8s
+# This re-runs the pipeline in place using package-context.yaml /
+# starlark-run.yaml's checked-in defaults — safe to run repeatedly, the
+# substitution is idempotent (same values in, same output, every time).
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: ml-platform-deploy
+info:
+  description: >-
+    Kubernetes manifests for the ml-platform frontend (Next.js) and quota-api
+    (FastAPI) — see README.md for the full file list and required
+    Secrets/ConfigMaps.
+pipeline:
+  mutators:
+    # Both images/tags verified against ghcr.io/kptdev/krm-functions-catalog's
+    # published tags (2026-08-20) — pin bumps should be tested with
+    # `kpt fn render` before rolling forward.
+    - image: ghcr.io/kptdev/krm-functions-catalog/apply-replacements:v0.1.6
+      configPath: apply-replacements.yaml
+      name: propagate-cluster-values
+    - image: ghcr.io/kptdev/krm-functions-catalog/starlark:v0.5.6
+      configPath: starlark-run.yaml
+      name: substitute-env-values

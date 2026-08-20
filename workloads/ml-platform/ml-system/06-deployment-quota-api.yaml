@@ -1,0 +1,146 @@
+# quota-api (FastAPI backend) Deployment — runs in its own "ml-backend-system"
+# namespace, separate from "jhub-ns" (frontend + JupyterHub).
+#
+# CUSTOMIZE: image tag — bump `image:` below (or use
+# `kubectl set image deploy/ml-backend-system ml-backend-system=<new-tag> -n ml-backend-system`)
+# each time you push a new build. See the README for the full release flow.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-backend-system
+  namespace: ml-backend-system
+  labels:
+    app: ml-backend-system
+spec:
+  # SQLite-backed (see 05-pvc-quota-api.yaml) — do not scale beyond 1 replica
+  # without first migrating to a server-backed database.
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      # A second pod can't safely share the SQLite file on the PVC (ReadWriteOnce,
+      # and SQLite itself doesn't support concurrent multi-writer access) — the
+      # old pod must fully terminate before the new one starts.
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ml-backend-system
+  template:
+    metadata:
+      labels:
+        app: ml-backend-system
+    spec:
+      serviceAccountName: ml-backend-system
+      # Remove if the image is public — see 01-secrets.example.yaml.
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: ml-backend-system
+          # CUSTOMIZE: pin to a specific tag for production instead of
+          # `latest` (immutable tags make rollbacks and audits reliable —
+          # `latest` can silently change under you on the next pod restart).
+          # Note: the image repository name itself is unrelated to this
+          # rename — it's a separate concern (image publishing), left as-is.
+          image: ghcr.io/vitu-mafeni/quota-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: ml-backend-system-config
+          env:
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ml-backend-system-secrets
+                  key: keycloak-admin-password
+            - name: JUPYTERHUB_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ml-backend-system-secrets
+                  key: jupyterhub-api-token
+            - name: QUOTA_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ml-backend-system-secrets
+                  key: quota-api-token
+            # Uncomment once you've set credential-key in the Secret — see
+            # 01-secrets.example.yaml for why this is optional.
+            # - name: CREDENTIAL_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: ml-backend-system-secrets
+            #       key: credential-key
+            # Harbor auto-seed/robot-bootstrap — uncomment together with the
+            # matching HARBOR_* keys in 02-configmap-quota-api.yaml and the
+            # harbor-secret/harbor-admin-password keys in 01-secrets.example.yaml.
+            # - name: HARBOR_SECRET
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: ml-backend-system-secrets
+            #       key: harbor-secret
+            # - name: HARBOR_ADMIN_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: ml-backend-system-secrets
+            #       key: harbor-admin-password
+          volumeMounts:
+            - name: db
+              mountPath: /data
+            - name: ui-config
+              mountPath: /config
+              readOnly: true
+            - name: eg-kernelspecs
+              mountPath: /mnt/eg-kernelspecs
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      restartPolicy: Always
+      volumes:
+        - name: db
+          persistentVolumeClaim:
+            claimName: ml-backend-system-db
+        - name: ui-config
+          configMap:
+            name: ml-backend-system-ui-config
+            optional: true   # absent ConfigMap → frontend compiled defaults
+        # CUSTOMIZE: server must match docs/jhub_eg_keycloak/eg-values.yaml's
+        # `nfs.internalServerIPAddress` — this is the same export Enterprise
+        # Gateway (namespace enterprise-gateway) mounts its kernelspecs from.
+        # A raw NFS volume (not a PVC) is used deliberately: PVCs are
+        # namespace-scoped and EG/quota-api run in different namespaces, so a
+        # single PVC can't bind both.
+        #
+        # path is NOT a placeholder — the EG chart's deployment.yaml
+        # hardcodes its NFS volume to exactly
+        # `path: "/usr/local/share/jupyter/kernels"` (verified against
+        # vitu-mafeni/enterprise_gateway's charts/templates/deployment.yaml;
+        # there is no values.yaml key to override it). The NFS server's
+        # export must literally serve this path, and this value must match
+        # it verbatim, or quota-api and EG will be writing/reading two
+        # different directories.
+        - name: eg-kernelspecs
+          nfs:
+            server: "192.168.3.234"
+            path: /usr/local/share/jupyter/kernels

@@ -1,0 +1,39 @@
+# Standard kpt "package context" file — a well-known ConfigMap named
+# `kptfile.kpt.dev` that kpt tooling auto-populates with the package's own
+# name (`data.name`). This is the SAME object a PackageVariant's
+# `spec.packageContext.data` merges values into (confirmed in
+# kptdev/porch's ensurePackageContext) — so it doubles as the source
+# apply-replacements.yaml propagates from.
+#
+# The extra keys below (everything except `name`) are NOT part of kpt's own
+# convention — they're this package's committed DEFAULTS for the values a
+# PackageVariant can override. Merge semantics mean a PackageVariant only
+# needs to set spec.packageContext.data for the keys it actually wants to
+# change; everything else here stays as-is.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kptfile.kpt.dev
+  annotations:
+    config.kubernetes.io/local-config: "true"
+data:
+  name: ml-platform-deploy
+  KEYCLOAK_BASE_URL: "http://keycloak.keycloak.svc.cluster.local:8080"
+  JUPYTERHUB_API_URL: "http://hub.jhub-ns.svc.cluster.local:8081/hub/api"
+  EG_NAMESPACE: "enterprise-gateway"
+  KERNELSPECS_PVC_PATH: "/mnt/eg-kernelspecs"
+  GRAFANA_URL: "http://192.168.3.234:32300"
+  CHECKPOINT_API_URL: "http://192.168.3.234:30829"
+  QUOTA_RESTORE_ALLOW_RESIZE: "false"
+  MODEL_ARTIFACT_STORAGE_CLASS: "nfs-csi"
+  KERNEL_SYNC_TIMEOUT_SECONDS: "21600"
+  HARBOR_BASE_URL: "http://10.9.0.13:30728"
+  HARBOR_VERIFY_TLS: "false"
+  HARBOR_ADMIN_USERNAME: "admin"
+  HARBOR_COPY_TIMEOUT_SECONDS: "10800"
+  NEXT_PUBLIC_QUOTA_API: "http://CHANGE-ME:30082"
+  NEXT_PUBLIC_KC_URL: "http://CHANGE-ME:30090"
+  QUOTA_API_IMAGE: "ghcr.io/vitu-mafeni/quota-api:latest"
+  FRONTEND_IMAGE: "ghcr.io/vitu-mafeni/ml-platform-frontend:latest"
+  PORTAL_HOST: "portal.CHANGE-ME.example.com"
+  API_HOST: "api.CHANGE-ME.example.com"

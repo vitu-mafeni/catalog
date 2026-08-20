@@ -1,0 +1,130 @@
+# functionConfig for the `gcr.io/kptdev/krm-functions-catalog/starlark` mutator
+# declared in Kptfile.
+#
+# `source` and `params` are TOP-LEVEL fields on StarlarkRun (there is no
+# `spec:` wrapper — confirmed against
+# github.com/kptdev/krm-functions-catalog/functions/go/starlark's README).
+# The script reads params via ctx.resource_list["functionConfig"]["params"].
+#
+# params below are the DEFAULTS for this package as committed — they match
+# the CHANGE-ME placeholders / documented defaults already in
+# 02-configmap-quota-api.yaml, 03-configmap-frontend.yaml, 06/08's Deployment
+# image tags, and 10-ingress.yaml's hosts. Running `kpt fn render` with no
+# overrides is therefore a safe no-op (same values in, same values out).
+#
+# A PackageVariant overrides individual params for one target cluster by
+# setting spec.packageContext.data — merged directly into package-context.yaml's
+# ConfigMap/kptfile.kpt.dev; apply-replacements.yaml then propagates each field
+# from there into `params.<KEY>` here, before this mutator runs — see
+# README.md's "kpt package / PackageVariant" section for a full worked example.
+#
+# source implements a GENERIC substitution, not a hardcoded per-field patch:
+# any ConfigMap in this package whose `data` has a key matching a param name
+# gets that key's value replaced. This means EVERY env var either app reads
+# via its ConfigMap (ml-backend-system-config, frontend-config) is already
+# overridable just by adding that exact key to params below — nothing else
+# needs to change in this file or the script for a new env var to become
+# settable, as long as it's already a real (uncommented) ConfigMap key.
+apiVersion: fn.kpt.dev/v1alpha1
+kind: StarlarkRun
+metadata:
+  name: substitute-env-values
+source: |
+  # Generic ConfigMap data substitution: for every ConfigMap in the
+  # package, replace any `data` entry whose key matches a param name.
+  # Covers every env var both apps read via envFrom/configMapRef.
+  def substitute_configmap_data(resource, params):
+    data = resource.get("data")
+    if data == None:
+      return
+    for key in data.keys():
+      if key in params:
+        data[key] = params[key]
+
+  # Deployment image tags: ml-backend-system (quota-api) and frontend each
+  # get their own param (QUOTA_API_IMAGE / FRONTEND_IMAGE) matched by
+  # container name, since that's how 06/08's Deployments name them.
+  def substitute_deployment_image(resource, params):
+    name = resource["metadata"]["name"]
+    image_param = {"ml-backend-system": "QUOTA_API_IMAGE", "frontend": "FRONTEND_IMAGE"}.get(name)
+    if image_param == None or image_param not in params:
+      return
+    containers = resource["spec"]["template"]["spec"]["containers"]
+    for c in containers:
+      if c["name"] == name:
+        c["image"] = params[image_param]
+
+  # Ingress hosts: ml-platform-frontend / ml-platform-api (10-ingress.yaml),
+  # matched by param name PORTAL_HOST / API_HOST.
+  def substitute_ingress_host(resource, params):
+    name = resource["metadata"]["name"]
+    host_param = {"ml-platform-frontend": "PORTAL_HOST", "ml-platform-api": "API_HOST"}.get(name)
+    if host_param == None or host_param not in params:
+      return
+    for rule in resource["spec"].get("rules", []):
+      rule["host"] = params[host_param]
+
+  def main():
+    params = ctx.resource_list["functionConfig"]["params"]
+    for resource in ctx.resource_list["items"]:
+      kind = resource.get("kind", "")
+      # Never touch Secrets — real credentials are deliberately kept out of
+      # this GitOps package (created imperatively / gitignored, see
+      # 01-secrets.example.yaml). A param can never accidentally leak a
+      # credential into a rendered manifest this way.
+      if kind == "Secret":
+        continue
+      elif kind == "ConfigMap":
+        substitute_configmap_data(resource, params)
+      elif kind == "Deployment":
+        substitute_deployment_image(resource, params)
+      elif kind == "Ingress":
+        substitute_ingress_host(resource, params)
+
+  main()
+
+# Defaults — identical to what's already committed in the plain YAML.
+# Override only what a given target cluster actually needs to change.
+params:
+  # ── quota-api (ml-backend-system-config) ──────────────────────────────
+  KEYCLOAK_BASE_URL: "http://keycloak.keycloak.svc.cluster.local:8080"
+  KEYCLOAK_REALM: "jupyterhub"
+  KEYCLOAK_ADMIN_USER: "admin"
+  JUPYTERHUB_API_URL: "http://hub.jhub-ns.svc.cluster.local:8081/hub/api"
+  QUOTA_API_NAMESPACE: "ml-backend-system"
+  JHUB_NAMESPACE: "jhub-ns"
+  EG_NAMESPACE: "enterprise-gateway"
+  KERNELSPECS_PVC_PATH: "/mnt/eg-kernelspecs"
+  ALERTMANAGER_URL: "http://prometheus-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093"
+  PROMETHEUS_URL: "http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
+  GRAFANA_URL: "http://192.168.3.234:32300"
+  CHECKPOINT_API_URL: "http://192.168.3.234:30829"
+  QUOTA_RESTORE_ALLOW_RESIZE: "false"
+  MODEL_ARTIFACT_STORAGE_CLASS: "nfs-csi"
+  KERNEL_SYNC_TIMEOUT_SECONDS: "21600"
+
+  # ── Harbor auto-seed/robot-bootstrap (see 02-configmap-quota-api.yaml) ──
+  # HARBOR_ADMIN_PASSWORD is a credential — stays Secret-only, never here.
+  HARBOR_BASE_URL: "http://10.9.0.13:30728"
+  HARBOR_VERIFY_TLS: "false"
+  HARBOR_ADMIN_USERNAME: "admin"
+  HARBOR_COPY_TIMEOUT_SECONDS: "10800"
+
+  # ── frontend (frontend-config) — must be reachable from the user's
+  #    browser, not cluster-internal DNS ─────────────────────────────────
+  NEXT_PUBLIC_QUOTA_API: "http://CHANGE-ME:30082"
+  NEXT_PUBLIC_KC_URL: "http://CHANGE-ME:30090"
+  NEXT_PUBLIC_KC_REALM: "jupyterhub"
+  NEXT_PUBLIC_KC_CLIENT: "quota-admin-ui"
+  # Optional (03-configmap-frontend.yaml's commented default) — uncomment
+  # NEXT_PUBLIC_ADMIN_EXTERNAL_MONITORING in that ConfigMap first if this
+  # target cluster should show the "Advanced Monitoring" button.
+  # NEXT_PUBLIC_ADMIN_EXTERNAL_MONITORING: "http://CHANGE-ME:32300/dashboards"
+
+  # ── Image tags (06-deployment-quota-api.yaml / 08-deployment-frontend.yaml) ──
+  QUOTA_API_IMAGE: "ghcr.io/vitu-mafeni/quota-api:latest"
+  FRONTEND_IMAGE: "ghcr.io/vitu-mafeni/ml-platform-frontend:latest"
+
+  # ── Ingress hosts (10-ingress.yaml, only relevant if that Ingress is in use) ──
+  PORTAL_HOST: "portal.CHANGE-ME.example.com"
+  API_HOST: "api.CHANGE-ME.example.com"

@@ -531,6 +531,24 @@ data:
         pullPolicy: IfNotPresent
       storage:
         type: dynamic
+        # dynamic.storageClass/storageAccessModes must be nested under
+        # `dynamic:` for this chart version (3.3.8) — flat siblings of
+        # `type` are silently ignored. Requests ReadWriteMany on nfs-csi
+        # for the singleuser server's own home PVC (e.g. lets a named
+        # server spawn on a different node than a prior one without
+        # RWO's same-node restriction). Kernel pods do NOT mount this PVC
+        # — see quota_api/kernel_sync_service.py for why (WAN latency
+        # between the GPU node and the NFS server made a live shared
+        # mount impractical) and use the explicit "Sync to Home" action
+        # instead.
+        #
+        # Existing users' claim-{username} PVCs were migrated to RWX via
+        # quota_api/scripts/migrate_home_storage_rwx.py; this setting only
+        # affects PVCs KubeSpawner creates fresh (new users) — it does not
+        # retroactively change any PVC that already exists.
+        dynamic:
+          storageClass: nfs-csi
+          storageAccessModes: ["ReadWriteMany"]
         extraVolumes:
           - name: labext-shared
             emptyDir: {}
@@ -1282,6 +1300,7 @@ data:
             _QUOTA_API  = os.environ.get("QUOTA_API_URL", "")
             _QUOTA_TOK  = os.environ.get("QUOTA_API_TOKEN", "")
             _JHUB_USER  = os.environ.get("JUPYTERHUB_USER", "")
+            _JHUB_SERVER = os.environ.get("JUPYTERHUB_SERVER_NAME", "")
 
             _qlog.warning("quota kernel hook: QUOTA_API_URL=%r USER=%r", _QUOTA_API, _JHUB_USER)
 
@@ -1294,7 +1313,7 @@ data:
                     # kernel_name is passed as a kwarg by MappingKernelManager
                     _kname = kwargs.get("kernel_name") or ""
                     if _QUOTA_API and _QUOTA_TOK and _JHUB_USER:
-                        _body = _json.dumps({"kernel_name": _kname}).encode()
+                        _body = _json.dumps({"kernel_name": _kname, "server_name": _JHUB_SERVER}).encode()
                         _req  = urllib.request.Request(
                             f"{_QUOTA_API}/quotas/users/{_JHUB_USER}/enforce-kernel",
                             data=_body,
@@ -1336,4 +1355,4 @@ data:
                 _qlog.error("Failed to patch GatewayMappingKernelManager: %s", _patch_err)
 
     ingress:
-      enabled: false            
+      enabled: false                

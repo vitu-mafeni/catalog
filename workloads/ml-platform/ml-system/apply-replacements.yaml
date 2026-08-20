@@ -1,0 +1,211 @@
+# Propagates each field from the standard kpt package-context ConfigMap
+# (ConfigMap/kptfile.kpt.dev, defined in package-context.yaml) into
+# starlark-run.yaml's StarlarkRun params.<KEY> — same source/targets/select/
+# fieldPaths/options shape as any other ApplyReplacements functionConfig.
+# Runs BEFORE the starlark mutator in Kptfile's pipeline, so params already
+# carry this cluster's real values by the time the substitution script reads
+# them.
+#
+# kptfile.kpt.dev is the RIGHT source (not a custom injected ConfigMap):
+# a PackageVariant's `spec.packageContext.data` MERGES literal key/value
+# pairs directly into this exact ConfigMap (confirmed in kptdev/porch's
+# ensurePackageContext, which runs before the pipeline executes) — so the
+# override values can live inline in the PackageVariant's own spec, with
+# true partial-override semantics, and no separate object to pre-create.
+apiVersion: fn.kpt.dev/v1alpha1
+kind: ApplyReplacements
+metadata:
+  name: propagate-cluster-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+replacements:
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.KEYCLOAK_BASE_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.KEYCLOAK_BASE_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.JUPYTERHUB_API_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.JUPYTERHUB_API_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.EG_NAMESPACE
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.EG_NAMESPACE
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.KERNELSPECS_PVC_PATH
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.KERNELSPECS_PVC_PATH
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.GRAFANA_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.GRAFANA_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.CHECKPOINT_API_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.CHECKPOINT_API_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.MODEL_ARTIFACT_STORAGE_CLASS
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.MODEL_ARTIFACT_STORAGE_CLASS
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.QUOTA_RESTORE_ALLOW_RESIZE
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.QUOTA_RESTORE_ALLOW_RESIZE
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.KERNEL_SYNC_TIMEOUT_SECONDS
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.KERNEL_SYNC_TIMEOUT_SECONDS
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.HARBOR_BASE_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.HARBOR_BASE_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.HARBOR_VERIFY_TLS
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.HARBOR_VERIFY_TLS
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.HARBOR_ADMIN_USERNAME
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.HARBOR_ADMIN_USERNAME
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.HARBOR_COPY_TIMEOUT_SECONDS
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.HARBOR_COPY_TIMEOUT_SECONDS
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.NEXT_PUBLIC_QUOTA_API
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.NEXT_PUBLIC_QUOTA_API
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.NEXT_PUBLIC_KC_URL
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.NEXT_PUBLIC_KC_URL
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.QUOTA_API_IMAGE
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.QUOTA_API_IMAGE
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.FRONTEND_IMAGE
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.FRONTEND_IMAGE
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.PORTAL_HOST
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.PORTAL_HOST
+- source:
+    kind: ConfigMap
+    name: kptfile.kpt.dev
+    fieldPath: data.API_HOST
+  targets:
+  - select:
+      kind: StarlarkRun
+      name: substitute-env-values
+    fieldPaths:
+    - params.API_HOST
