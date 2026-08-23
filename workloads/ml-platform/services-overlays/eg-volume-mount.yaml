@@ -10,7 +10,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: seed
-          image: vitu1/enterprise-gateway-kernelspecs:1.1.0
+          image: vitu1/enterprise-gateway-kernelspecs:1.1.1
           command: ["sh", "-c", "cp -rv /kernels/. /dest/ && echo SEED_DONE"]
           volumeMounts:
             - name: eg-kernelspecs

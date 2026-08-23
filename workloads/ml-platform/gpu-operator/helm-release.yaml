@@ -3,6 +3,7 @@ kind: HelmRelease
 metadata:
   name: gpu-operator
   namespace: gpu-operator
+
 spec:
   interval: 10m
   timeout: 30m
@@ -32,8 +33,8 @@ spec:
       defaultMode: "off"
       enabled: false
       env:
-      - name: CC_CAPABLE_DEVICE_IDS
-        value: 0x2339,0x2331,0x2330,0x2324,0x2322,0x233d
+        - name: CC_CAPABLE_DEVICE_IDS
+          value: 0x2339,0x2331,0x2330,0x2324,0x2322,0x233d
       image: k8s-cc-manager
       imagePullPolicy: IfNotPresent
       imagePullSecrets: []
@@ -52,9 +53,9 @@ spec:
       rollingUpdate:
         maxUnavailable: "1"
       tolerations:
-      - effect: NoSchedule
-        key: nvidia.com/gpu
-        operator: Exists
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
       updateStrategy: RollingUpdate
 
     dcgm:
@@ -69,83 +70,146 @@ spec:
 
     dcgmExporter:
       enabled: true
+
       env:
-      # - name: KUBERNETES_ENABLE_DRA
-      #   value: "true"
-      - name: DCGM_EXPORTER_INTERVAL
-        value: "5000"
-      - name: DCGM_EXPORTER_KUBERNETES
-        value: "true"
-      - name: DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE
-        value: "uid"
+        # - name: KUBERNETES_ENABLE_DRA
+        #   value: "true"
+        - name: DCGM_EXPORTER_INTERVAL
+          value: "5000"
+        - name: DCGM_EXPORTER_KUBERNETES
+          value: "true"
+        - name: DCGM_EXPORTER_KUBERNETES_GPU_ID_TYPE
+          value: "uid"
+
       hostPID: false
       hostNetwork: false
+
       image: dcgm-exporter
       imagePullPolicy: IfNotPresent
+
       kubernetes:
         enablePodLabels: true
-        rbac:
-          create: true
+
+      rbac:
+        create: true
+
       repository: nvcr.io/nvidia/k8s
       resources: {}
+
       service:
         internalTrafficPolicy: Cluster
+
       enablePodLabels: true
       enablePodUID: true
+
       serviceMonitor:
         enabled: true
         interval: 15s
         honorLabels: false
+
         additionalLabels:
           release: prometheus
-        relabelings:                                          # same column as additionalLabels
+
+        relabelings:
           - sourceLabels: [__meta_kubernetes_endpoint_node_name]
             regex: (.*)
             targetLabel: kubernetes_node
             replacement: $1
             action: replace
+
           - sourceLabels: [__meta_kubernetes_pod_node_name]
             regex: (.*)
             targetLabel: kubernetes_node
             replacement: $1
             action: replace
+
       version: 4.3.1-4.4.0-ubuntu22.04
+
       config:
         create: true
         name: dcgm-counters
+
         data: |-
+          # Device utilization and memory
           DCGM_FI_DEV_GPU_UTIL, gauge, GPU utilization (%)
-          DCGM_FI_DEV_MEM_COPY_UTIL, gauge, Memory bandwidth utilization (%)
-          DCGM_FI_DEV_ENC_UTIL, gauge, Encoder utilization (%)
-          DCGM_FI_DEV_DEC_UTIL, gauge, Decoder utilization (%)
-          DCGM_FI_DEV_FB_FREE, gauge, Framebuffer free memory (MiB)
-          DCGM_FI_DEV_FB_USED, gauge, Framebuffer used memory (MiB)
-          DCGM_FI_DEV_FB_TOTAL, gauge, Framebuffer total memory (MiB)
+          DCGM_FI_DEV_MEM_COPY_UTIL, gauge, Memory utilization (%)
+          DCGM_FI_DEV_FB_USED, gauge, Framebuffer memory used (MiB)
+          DCGM_FI_DEV_FB_FREE, gauge, Framebuffer memory free (MiB)
+          DCGM_FI_DEV_FB_TOTAL, gauge, Total framebuffer memory (MiB)
+          DCGM_FI_DEV_FB_RESERVED, gauge, Framebuffer memory reserved (MiB)
+
+          # Temperature and power
           DCGM_FI_DEV_GPU_TEMP, gauge, GPU temperature (C)
           DCGM_FI_DEV_MEMORY_TEMP, gauge, Memory temperature (C)
-          DCGM_FI_DEV_POWER_USAGE, gauge, Power usage (W)
-          DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION, counter, Energy consumed
+          DCGM_FI_DEV_POWER_USAGE, gauge, Power draw (W)
+          DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION, counter, Total energy consumption since boot (mJ)
+
+          # GPU clocks
+          DCGM_FI_DEV_SM_CLOCK, gauge, SM clock frequency (MHz)
+          DCGM_FI_DEV_MEM_CLOCK, gauge, Memory clock frequency (MHz)
+
+          # Encoder / decoder
+          DCGM_FI_DEV_ENC_UTIL, gauge, Encoder utilization (%)
+          DCGM_FI_DEV_DEC_UTIL, gauge, Decoder utilization (%)
+
+          # PCIe / reliability / remapping
+          DCGM_FI_DEV_PCIE_REPLAY_COUNTER, counter, Total number of PCIe retries
           DCGM_FI_DEV_PCIE_TX_THROUGHPUT, counter, PCIe TX
           DCGM_FI_DEV_PCIE_RX_THROUGHPUT, counter, PCIe RX
-          DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL, counter, NVLINK bandwidth
-          DCGM_FI_DEV_SM_CLOCK, gauge, SM clock
-          DCGM_FI_DEV_MEM_CLOCK, gauge, Memory clock
-          DCGM_FI_DEV_CLOCK_THROTTLE_REASONS, gauge, Clock throttle reasons
+          DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS, counter, Number of remapped rows for correctable errors
+          DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS, counter, Number of remapped rows for uncorrectable errors
+          DCGM_FI_DEV_ROW_REMAP_FAILURE, gauge, Whether remapping of rows has failed
+
+          # vGPU
+          DCGM_FI_DEV_VGPU_LICENSE_STATUS, gauge, vGPU License status
+
+          # ECC / XID
           DCGM_FI_DEV_ECC_SBE_VOL_TOTAL, counter, ECC SBE
           DCGM_FI_DEV_ECC_DBE_VOL_TOTAL, counter, ECC DBE
           DCGM_FI_DEV_XID_ERRORS, gauge, XID errors
-          DCGM_FI_PROF_GR_ENGINE_ACTIVE, gauge, Graphics engine activity
-          DCGM_FI_PROF_SM_ACTIVE, gauge, SM active
-          DCGM_FI_PROF_SM_OCCUPANCY, gauge, SM occupancy
-          DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, Tensor activity
-          DCGM_FI_PROF_PIPE_FP64_ACTIVE, gauge, FP64 activity
-          DCGM_FI_PROF_PIPE_FP32_ACTIVE, gauge, FP32 activity
-          DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, FP16 activity
-          DCGM_FI_PROF_DRAM_ACTIVE, gauge, DRAM activity
-          DCGM_FI_PROF_PCIE_TX_BYTES, counter, PCIe TX bytes
-          DCGM_FI_PROF_PCIE_RX_BYTES, counter, PCIe RX bytes                    
 
+          # NVLink legacy metric
+          DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL, counter, NVLINK bandwidth
 
+          # GPU profiling
+          DCGM_FI_PROF_GR_ENGINE_ACTIVE, gauge, Ratio of time the graphics engine is active
+          DCGM_FI_PROF_DRAM_ACTIVE, gauge, Ratio of cycles the device memory interface is active
+          DCGM_FI_PROF_SM_ACTIVE, gauge, Ratio of cycles an SM has at least one warp resident
+          DCGM_FI_PROF_SM_OCCUPANCY, gauge, Ratio of resident warps to the theoretical maximum
+
+          # Tensor pipelines
+          DCGM_FI_PROF_PIPE_TENSOR_ACTIVE, gauge, Ratio of cycles any tensor pipe is active
+          DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE, gauge, Ratio of cycles the HMMA (FP16/BF16) tensor pipe is active
+          DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE, gauge, Ratio of cycles the IMMA (INT8) tensor pipe is active
+          DCGM_FI_PROF_PIPE_TENSOR_DFMA_ACTIVE, gauge, Ratio of cycles the DFMA (FP64) tensor pipe is active
+
+          # Non-tensor compute pipelines
+          DCGM_FI_PROF_PIPE_FP64_ACTIVE, gauge, Ratio of cycles the non-tensor FP64 pipe is active
+          DCGM_FI_PROF_PIPE_FP32_ACTIVE, gauge, Ratio of cycles the non-tensor FP32 pipe is active
+          DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, Ratio of cycles the non-tensor FP16 pipe is active
+
+          # PCIe profiling
+          DCGM_FI_PROF_PCIE_TX_BYTES, gauge, PCIe bytes written
+          DCGM_FI_PROF_PCIE_RX_BYTES, gauge, PCIe bytes read
+
+          # NVLink profiling
+          DCGM_FI_PROF_NVLINK_TX_BYTES, gauge, NVLink bytes written
+          DCGM_FI_PROF_NVLINK_RX_BYTES, gauge, NVLink bytes read
+
+          # C2C interconnect
+          DCGM_FI_PROF_C2C_TX_ALL_BYTES, gauge, C2C bytes written across all links
+          DCGM_FI_PROF_C2C_RX_ALL_BYTES, gauge, C2C bytes read across all links
+
+          # Host / peer memory cache
+          DCGM_FI_PROF_HOSTMEM_CACHE_HIT, gauge, Host memory cache hits
+          DCGM_FI_PROF_HOSTMEM_CACHE_MISS, gauge, Host memory cache misses
+          DCGM_FI_PROF_PEERMEM_CACHE_HIT, gauge, Peer memory cache hits
+          DCGM_FI_PROF_PEERMEM_CACHE_MISS, gauge, Peer memory cache misses
+
+          # Integer pipeline
+          # Requested even where unsupported. DCGM will log "metric not enabled"
+          # and skip it rather than failing the entire registry.
+          DCGM_FI_PROF_PIPE_INT_ACTIVE, gauge, Ratio of cycles the integer pipe is active
 
     devicePlugin:
       args: []
@@ -232,6 +296,7 @@ spec:
       imagePullPolicy: IfNotPresent
       imagePullSecrets: []
       repository: nvcr.io/nvidia/cloud-native
+      resources: {}
       version: v2.5.1
 
     gds:
@@ -242,6 +307,7 @@ spec:
       imagePullPolicy: IfNotPresent
       imagePullSecrets: []
       repository: nvcr.io/nvidia/cloud-native
+      resources: {}
       version: 2.20.5
 
     gfd:
@@ -262,17 +328,17 @@ spec:
       config:
         artifactsDir: /opt/nvidia-gpu-operator/artifacts/runtimeclasses
         runtimeClasses:
-        - artifacts:
-            pullSecret: ""
-            url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.54.03
-          name: kata-nvidia-gpu
-          nodeSelector: {}
-        - artifacts:
-            pullSecret: ""
-            url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.86.10-snp
-          name: kata-nvidia-gpu-snp
-          nodeSelector:
-            nvidia.com/cc.capable: "true"
+          - artifacts:
+              pullSecret: ""
+              url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.54.03
+            name: kata-nvidia-gpu
+            nodeSelector: {}
+          - artifacts:
+              pullSecret: ""
+              url: nvcr.io/nvidia/cloud-native/kata-gpu-artifacts:ubuntu22.04-535.86.10-snp
+            name: kata-nvidia-gpu-snp
+            nodeSelector:
+              nvidia.com/cc.capable: "true"
       enabled: false
       env: []
       image: k8s-kata-manager
@@ -337,33 +403,31 @@ spec:
           create: false
           name: node-feature-discovery
         tolerations: []
+
       global: {}
-      image:
-        pullPolicy: IfNotPresent
-        repository: registry.k8s.io/nfd/node-feature-discovery
-      imagePullSecrets: []
+
       master:
         affinity:
           nodeAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:
-            - preference:
-                matchExpressions:
-                - key: node-role.kubernetes.io/master
-                  operator: In
-                  values:
-                  - ""
-              weight: 1
-            - preference:
-                matchExpressions:
-                - key: node-role.kubernetes.io/control-plane
-                  operator: In
-                  values:
-                  - ""
-              weight: 1
+              - preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/master
+                      operator: In
+                      values:
+                        - ""
+                weight: 1
+              - preference:
+                  matchExpressions:
+                    - key: node-role.kubernetes.io/control-plane
+                      operator: In
+                      values:
+                        - ""
+                weight: 1
         annotations: {}
         config:
           extraLabelNs:
-          - nvidia.com
+            - nvidia.com
         denyLabelNs: []
         deploymentAnnotations: {}
         enable: true
@@ -402,7 +466,7 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
+              - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
         serviceAccount:
@@ -414,21 +478,24 @@ spec:
           grpc:
             port: 8082
         tolerations:
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/master
-          operator: Equal
-          value: ""
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/control-plane
-          operator: Equal
-          value: ""
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/master
+            operator: Equal
+            value: ""
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/control-plane
+            operator: Equal
+            value: ""
+
       nameOverride: ""
       namespaceOverride: ""
       priorityClassName: system-node-critical
+
       prometheus:
         enable: false
         labels: {}
         scrapeInterval: 10s
+
       topologyUpdater:
         affinity: {}
         annotations: {}
@@ -469,7 +536,7 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
+              - ALL
           readOnlyRootFilesystem: true
           runAsUser: 0
         serviceAccount:
@@ -478,7 +545,8 @@ spec:
           name: null
         tolerations: []
         updateInterval: 60s
-        watchNamespace: '*'
+        watchNamespace: "*"
+
       worker:
         affinity: {}
         annotations: {}
@@ -486,13 +554,13 @@ spec:
           sources:
             pci:
               deviceClassWhitelist:
-              - "02"
-              - "0200"
-              - "0207"
-              - "0300"
-              - "0302"
+                - "02"
+                - "0200"
+                - "0207"
+                - "0300"
+                - "0302"
               deviceLabelFields:
-              - vendor
+                - vendor
         daemonsetAnnotations: {}
         enable: true
         extraArgs: []
@@ -526,7 +594,7 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
+              - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
         serviceAccount:
@@ -534,17 +602,17 @@ spec:
           create: false
           name: node-feature-discovery
         tolerations:
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/master
-          operator: Equal
-          value: ""
-        - effect: NoSchedule
-          key: node-role.kubernetes.io/control-plane
-          operator: Equal
-          value: ""
-        - effect: NoSchedule
-          key: nvidia.com/gpu
-          operator: Exists
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/master
+            operator: Equal
+            value: ""
+          - effect: NoSchedule
+            key: node-role.kubernetes.io/control-plane
+            operator: Equal
+            value: ""
+          - effect: NoSchedule
+            key: nvidia.com/gpu
+            operator: Exists
 
     nodeStatusExporter:
       enabled: false
@@ -558,37 +626,43 @@ spec:
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - preference:
-              matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: In
-                values:
-                - ""
-            weight: 1
-          - preference:
-              matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
-                operator: In
-                values:
-                - ""
-            weight: 1
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+            - preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: In
+                    values:
+                      - ""
+              weight: 1
+
       annotations:
         openshift.io/scc: restricted-readonly
+
       cleanupCRD: false
       image: gpu-operator
       imagePullPolicy: IfNotPresent
       imagePullSecrets: []
+
       initContainer:
         image: cuda
         imagePullPolicy: IfNotPresent
         repository: nvcr.io/nvidia
         version: 13.0.0-base-ubi9
+
       logging:
         develMode: false
         level: info
         timeEncoding: epoch
+
       priorityClassName: system-node-critical
       repository: nvcr.io/nvidia
+
       resources:
         limits:
           cpu: 500m
@@ -596,16 +670,19 @@ spec:
         requests:
           cpu: 200m
           memory: 100Mi
+
       runtimeClass: nvidia
+
       tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/master
-        operator: Equal
-        value: ""
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/control-plane
-        operator: Equal
-        value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+          value: ""
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal
+          value: ""
+
       upgradeCRD: true
       use_ocp_driver_toolkit: false
 
@@ -672,6 +749,7 @@ spec:
       imagePullPolicy: IfNotPresent
       imagePullSecrets: []
       repository: nvcr.io/nvidia/cloud-native
+      resources: {}
       version: v0.4.0
 
     vgpuManager:

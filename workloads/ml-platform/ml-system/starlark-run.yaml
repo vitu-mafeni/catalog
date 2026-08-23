@@ -29,6 +29,9 @@ apiVersion: fn.kpt.dev/v1alpha1
 kind: StarlarkRun
 metadata:
   name: substitute-env-values
+  annotations:
+    config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 source: |
   # Generic ConfigMap data substitution: for every ConfigMap in the
   # package, replace any `data` entry whose key matches a param name.

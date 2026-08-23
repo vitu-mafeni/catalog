@@ -20,6 +20,8 @@ spec:
         # Equivalent to --set-json 'storageSpec={}'
         storageSpec: {}
         # Equivalent to --set retentionSize=""
+        scrapeInterval: "30s"
+        scrapeTimeout: "25s"
         retentionSize: ""
       service:
         type: NodePort

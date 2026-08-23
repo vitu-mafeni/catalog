@@ -18,6 +18,7 @@ metadata:
   name: propagate-cluster-values
   annotations:
     config.kubernetes.io/local-config: "true"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 replacements:
 - source:
     kind: ConfigMap
