@@ -201,15 +201,22 @@ spec:
           DCGM_FI_PROF_C2C_RX_ALL_BYTES, gauge, C2C bytes read across all links
 
           # Host / peer memory cache
-          DCGM_FI_PROF_HOSTMEM_CACHE_HIT, gauge, Host memory cache hits
-          DCGM_FI_PROF_HOSTMEM_CACHE_MISS, gauge, Host memory cache misses
-          DCGM_FI_PROF_PEERMEM_CACHE_HIT, gauge, Peer memory cache hits
-          DCGM_FI_PROF_PEERMEM_CACHE_MISS, gauge, Peer memory cache misses
+          # These four are commented out: dcgm-exporter 4.3.1-4.4.0 on this cluster
+          # hard-errored on DCGM_FI_PROF_HOSTMEM_CACHE_HIT with
+          #   "could not find DCGM field; err: unknown ExporterCounter field"
+          # An unknown field is FATAL (crashes the whole exporter), unlike an
+          # unsupported-but-known field which DCGM just skips with a WARN.
+          # Verify these field IDs exist on your DCGM version (`dcgmi discovery -l`
+          # on the node) before re-enabling.
+          # DCGM_FI_PROF_HOSTMEM_CACHE_HIT, gauge, Host memory cache hits
+          # DCGM_FI_PROF_HOSTMEM_CACHE_MISS, gauge, Host memory cache misses
+          # DCGM_FI_PROF_PEERMEM_CACHE_HIT, gauge, Peer memory cache hits
+          # DCGM_FI_PROF_PEERMEM_CACHE_MISS, gauge, Peer memory cache misses
 
           # Integer pipeline
           # Requested even where unsupported. DCGM will log "metric not enabled"
           # and skip it rather than failing the entire registry.
-          DCGM_FI_PROF_PIPE_INT_ACTIVE, gauge, Ratio of cycles the integer pipe is active
+          DCGM_FI_PROF_PIPE_INT_ACTIVE, gauge, Ratio of cycles the integer pipe is active          
 
     devicePlugin:
       args: []

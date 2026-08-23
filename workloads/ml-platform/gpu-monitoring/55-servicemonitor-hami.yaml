@@ -23,27 +23,19 @@ metadata:
   name: gpu-hami
   namespace: gpu-monitoring
   labels:
-    app.kubernetes.io/part-of: gpu-monitoring   # matched by the Prometheus CR
+    app.kubernetes.io/part-of: gpu-monitoring
 spec:
   namespaceSelector:
-    matchNames: ["hami-system"]
+    matchNames: ["kube-system"]
   selector:
-    # Verified against the live Service. The chart labels it name=hami with
-    # component=monitor; name=hami-dra-monitor looks obvious and matches
-    # nothing, and a ServiceMonitor that matches nothing applies cleanly and
-    # scrapes silently.
     matchLabels:
-      app.kubernetes.io/name: hami
+      app.kubernetes.io/name: hami-dra
       app.kubernetes.io/component: monitor
   endpoints:
     - port: metrics
       interval: 15s
       honorLabels: true
       metricRelabelings:
-        # Copy, never rename. deviceuuid is HAMi's native identifier and holds
-        # the same physical GPU UUID as every other source, so copying it into
-        # gpu_uuid makes HAMi joinable with DCGM, NVML and eBPF while leaving
-        # the original label intact for anyone following HAMi's own docs.
         - sourceLabels: [deviceuuid]
           targetLabel: gpu_uuid
           action: replace
