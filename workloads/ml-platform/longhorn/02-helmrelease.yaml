@@ -22,6 +22,7 @@ spec:
       defaultClassReplicaCount: 2
       reclaimPolicy: Retain
     defaultSettings:
+      deletingConfirmationFlag: true
       defaultReplicaCount: 2   # 1 on a single node, 2 or 3 on a multi-node cluster
       defaultDataPath: /var/lib/longhorn   # mount a dedicated disk here
   install:
