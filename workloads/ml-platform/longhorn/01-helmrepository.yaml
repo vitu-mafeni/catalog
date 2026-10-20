@@ -1,0 +1,8 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: # kpt-merge: longhorn-system/longhorn
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  interval: 1h
+  url: https://charts.longhorn.io

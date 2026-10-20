@@ -1,3 +1,27 @@
+# NOT a kpt-parameterizable package like deploy/k8s/ (Kptfile + apply-setters
+# + `# kpt-set:` comments) — deliberately, not an oversight. The actual
+# JupyterHub Helm values below live inside ONE giant block-scalar string
+# (`ConfigMap.data["values.yaml"]`), which kpt's KRM function pipeline can't
+# reach into: apply-setters reads a YAML node's own LineComment (confirmed in
+# krm-functions-catalog's applysetters/visit.go), and search-replace's
+# by-value/by-value-regex require exact/fully-anchored matches against an
+# entire node's value (search_replace.go) — neither can target one line deep
+# inside a multi-line string, which this ConfigMap's whole
+# `values.yaml` key is, as far as either function is concerned.
+#
+# Every cluster-specific value in this file (IPs, the proxy/API tokens, OAuth
+# client secret, image tags, storage class — see hub.extraEnv,
+# hub.config.GenericOAuthenticator, singleuser.image/storage below) must be
+# hand-edited per cluster before applying, same as before any kpt tooling was
+# introduced elsewhere in this repo. See deploy/k8s/README.md's "Not covered
+# here" section.
+apiVersion: v1
+kind: Namespace
+metadata: # kpt-merge: /jhub-ns
+  name: jhub-ns
+  annotations:
+    internal.kpt.dev/upstream-identifier: '|Namespace|default|jhub-ns'
+---
 apiVersion: v1
 kind: ConfigMap
 metadata: # kpt-merge: jhub-ns/jhub-values
@@ -97,9 +121,11 @@ data:
         #custom pre_spawn_hook to call quota API and set allowed kernels per-user
 
       extraEnv:
-        # For local dev: use the node IP where fastapi dev is running
-        # For production (quota-api deployed in k8s): use http://quota-api.jhub-ns.svc.cluster.local:8000
-        QUOTA_API_URL: "http://10.244.0.1:9000"
+        # For local dev: use the node IP where fastapi dev is running.
+        # In-cluster (quota-api deployed via deploy/k8s/, namespace
+        # ml-backend-system — NOT jhub-ns, quota-api moved out of jhub-ns a
+        # while back): use the in-cluster Service DNS below.
+        QUOTA_API_URL: "http://ml-backend-system.ml-backend-system.svc.cluster.local:8000"
         QUOTA_API_TOKEN: "testtoken123"   # must match QUOTA_API_TOKEN in .env.local
         # URL of the portal — JupyterHub redirects here after /hub/logout so the
         # browser lands back on the portal login page (not JH's own login page).
@@ -110,7 +136,7 @@ data:
         # GPU kernel names are intentionally excluded — users must go through the portal
         # and select a GPU profile to access those kernels.
         # Values must exactly match the kernel spec IDs registered in Enterprise Gateway.
-        QUOTA_CPU_KERNELS: "python3,python_kubernetes"
+        QUOTA_CPU_KERNELS: "python3"
 
       extraConfig:
         oauthNoConfirm: |
@@ -522,7 +548,7 @@ data:
         JUPYTER_GATEWAY_CONNECT_TIMEOUT: "120"
         JUPYTER_GATEWAY_WS_PING_INTERVAL: "30"
         KERNEL_SERVICE_ACCOUNT_NAME: "enterprise-gateway-sa"
-        QUOTA_API_URL: "http://10.244.0.1:9000"      # ← add change
+        QUOTA_API_URL: "http://ml-backend-system.ml-backend-system.svc.cluster.local:8000"
         QUOTA_API_TOKEN: "testtoken123"
       cmd: ["/opt/conda/bin/jupyterhub-singleuser"]
       image:

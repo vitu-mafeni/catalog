@@ -1,0 +1,33 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: # kpt-merge: longhorn-system/longhorn
+  name: longhorn
+  namespace: longhorn-system
+spec:
+  interval: 5m
+  releaseName: longhorn
+  chart:
+    spec:
+      chart: longhorn
+      version: 1.13.0          # pin; match the version you tested
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+        namespace: longhorn-system
+  values:
+    persistence:
+      # keep nfs-csi as the cluster default StorageClass; the platform picks Longhorn through a storage profile
+      defaultClass: true
+      # 1 on a single node, 2 or 3 on a multi-node cluster
+      defaultClassReplicaCount: 2
+      reclaimPolicy: Retain
+    defaultSettings:
+      defaultReplicaCount: 2   # 1 on a single node, 2 or 3 on a multi-node cluster
+      defaultDataPath: /var/lib/longhorn   # mount a dedicated disk here
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
